@@ -77,7 +77,7 @@ export function createApi(client: ApiClient, customerId: string): BusinessApi {
     return { ok: true, products: matched, raw: r };
   }
 
-  // ===== 下单（从注入的池操作取全部 ticket 并发冲）=====
+  // ===== 下单（串行：每次取 1 个 ticket 冲，失败再取下一个，成功即停）=====
   async function placeOrder(productInfo: StockProduct[], deps: OrderDeps): Promise<OrderResult> {
     const available = productInfo
       .filter((p) => p.apiData && !p.apiData.soldOut && !p.apiData.forbidden)
@@ -86,82 +86,77 @@ export function createApi(client: ApiClient, customerId: string): BusinessApi {
     if (available.length === 0) return { error: '无可买方案' };
     if (deps.poolSize() === 0) return { error: 'ticket 池为空' };
 
-    const tickets: TicketCred[] = [];
-    while (deps.poolSize() > 0) {
-      const t = deps.shiftTicket();
-      if (t) tickets.push(t);
-    }
-
     const target = available[0]!;
     const { id: productId, name, cycle } = target;
-    log(`🎯 下单 ${name} (${productId}, cycle=${cycle})，并发 ${tickets.length} 个 ticket...`);
-    return await concurrentPlaceOrder(productId, name, cycle, tickets);
-  }
+    const poolBefore = deps.poolSize();
+    log(`🎯 下单 ${name} (${productId}, cycle=${cycle})，串行冲票（池子 ${poolBefore} 个）...`);
 
-  // ===== 并发下单内部类型（仅本模块使用）=====
-  interface PreviewAttempt {
-    ticketIdx: number;
-    success: boolean;
-    result?: ApiResponse<PayPreviewData> | ApiParseError;
-    error?: string;
-  }
+    let attempt = 0;
+    let lastError = '未知错误';
 
-  // ===== 并发下单（多 ticket 同时冲）=====
-  async function concurrentPlaceOrder(
-    productId: string,
-    productName: string,
-    billingCycle: BillingCycle,
-    tickets: TicketCred[],
-  ): Promise<OrderResult> {
-    const promises = tickets.map((cred, i) => {
-      const { ticket, randstr } = cred;
-      return client<ApiResponse<PayPreviewData>>('POST', `/api/biz/pay/preview?refer__1090=${REFER_1090}`, {
-        productId,
-        billingCycle,
-        ticket,
-        randstr,
-      })
-        .then((res): PreviewAttempt => ({ ticketIdx: i, success: true, result: res }))
-        .catch((err: Error): PreviewAttempt => ({ ticketIdx: i, success: false, error: err.message }));
-    });
+    while (deps.poolSize() > 0) {
+      attempt++;
+      const cred = deps.shiftTicket();
+      if (!cred) break;
 
-    log(`🚀 并发请求已发出，等待返回...`);
-    const results = await Promise.all(promises);
+      const result = await trySingleOrder(productId, name, cycle, cred, attempt);
 
-    let winner: PreviewAttempt | null = null;
-    for (const r of results) {
-      if (
-        r.success &&
-        r.result &&
-        !('parseError' in r.result) &&
-        r.result.code === 200 &&
-        r.result.data?.bizId
-      ) {
-        winner = r;
+      // 成功：立即返回
+      if ('success' in result) return result;
+
+      // 记录失败原因，继续取下一个 ticket
+      lastError = result.error;
+
+      // 售罄：不用再试了（这批库存已没）
+      if (lastError === '下单时已售罄') {
+        log('🛑 已售罄，停止冲票');
         break;
       }
     }
 
-    for (const r of results) {
-      if (r.success && r.result && !('parseError' in r.result)) {
-        const d = r.result;
-        log(
-          `  [票#${r.ticketIdx + 1}] code:${d.code} ${d.data?.bizId ? '✅ bizId:' + d.data.bizId : d.data?.soldOut ? '售罄' : d.msg}`,
-        );
-      } else if (!r.success) {
-        log(`  [票#${r.ticketIdx + 1}] ❌ ${r.error}`);
-      }
+    return { error: `本批尝试 ${attempt} 个 ticket 均失败，最后原因: ${lastError}` };
+  }
+
+  // ===== 单次下单尝试（1 个 ticket）=====
+  async function trySingleOrder(
+    productId: string,
+    productName: string,
+    billingCycle: BillingCycle,
+    cred: TicketCred,
+    attempt: number,
+  ): Promise<OrderResult> {
+    const { ticket, randstr } = cred;
+    let res: ApiResponse<PayPreviewData> | ApiParseError;
+    try {
+      res = await client<ApiResponse<PayPreviewData>>('POST', `/api/biz/pay/preview?refer__1090=${REFER_1090}`, {
+        productId,
+        billingCycle,
+        ticket,
+        randstr,
+      });
+    } catch (err) {
+      log(`  [票#${attempt}] ❌ 网络错误: ${(err as Error).message}`);
+      return { error: `网络错误: ${(err as Error).message}` };
     }
 
-    if (!winner || !winner.result || 'parseError' in winner.result) {
-      return { error: `本批 ${results.length} 个 ticket 全部失败` };
+    // 解析失败
+    if ('parseError' in res) {
+      log(`  [票#${attempt}] ❌ 响应解析失败`);
+      return { error: '响应解析失败' };
     }
 
-    const { bizId, soldOut, payAmount } = winner.result.data!;
-    if (soldOut) return { error: '下单时已售罄' };
-    log(`🏆 票#${winner.ticketIdx + 1} 命中！bizId: ${bizId}, 金额: ¥${payAmount}`);
+    // 打印结果
+    const d = res.data;
+    log(`  [票#${attempt}] code:${res.code} ${d?.bizId ? '✅ bizId:' + d.bizId : d?.soldOut ? '售罄' : res.msg}`);
 
-    // create-sign → 支付链接
+    // 没有 bizId 或 soldOut → 失败（555/限流/其他）
+    if (res.code !== 200 || !d?.bizId) {
+      return { error: d?.soldOut ? '下单时已售罄' : `code:${res.code} ${res.msg || ''}` };
+    }
+
+    // 命中！create-sign → 支付链接
+    const { bizId, payAmount } = d;
+    log(`🏆 票#${attempt} 命中！bizId: ${bizId}, 金额: ¥${payAmount}`);
     log('▶️ create-sign...');
     const sign = await client<ApiResponse<CreateSignData>>('POST', `/api/biz/pay/create-sign`, {
       payType: CONFIG.payType,
