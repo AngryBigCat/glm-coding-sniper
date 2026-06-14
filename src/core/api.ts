@@ -8,7 +8,7 @@
  *           不直接 import ticket-server，业务层与服务层解耦。
  */
 
-import { CUSTOMER_ID } from '../../config.js';
+import { getCustomerId } from './auth.js';
 import { CONFIG, PRODUCTS, REFER_1090 } from './constants.js';
 import { api, log } from './http-client.js';
 import type {
@@ -177,7 +177,7 @@ async function concurrentPlaceOrder(
   const sign = await api<ApiResponse<CreateSignData>>('POST', `/api/biz/pay/create-sign`, {
     payType: CONFIG.payType,
     productId,
-    customerId: CUSTOMER_ID,
+    customerId: getCustomerId(),
     bizId: bizId!,
   });
   log(`   → ${JSON.stringify(sign).slice(0, 400)}`);

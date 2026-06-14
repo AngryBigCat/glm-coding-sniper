@@ -55,7 +55,7 @@ console.log(`   ${CONFIG_PATH}`);
 console.log('');
 console.log('需要填写的字段：');
 console.log('   AUTH_TOKEN   — 从 bigmodel.cn 浏览器 Cookie 获取');
-console.log('   CUSTOMER_ID  — 从 bigmodel.cn 个人中心获取');
+console.log('   （customerId 会自动从 token 解码，无需手动配置）');
 console.log('');
 console.log('获取 AUTH_TOKEN 的方法：');
 console.log('   1. 浏览器打开 https://www.bigmodel.cn/glm-coding 并登录');
