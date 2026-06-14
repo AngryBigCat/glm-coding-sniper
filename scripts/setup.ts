@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * 首次安装引导 — 检查并创建 src/config.ts
+ * 首次安装引导 — 检查并创建 config.ts
  *
  * 用法: npm run setup
  *
  * 逻辑：
- *   - src/config.ts 不存在 → 从 config.example.ts 复制 → 提示填 token
+ *   - config.ts 不存在 → 从 config.example.ts 复制 → 提示填 token
  *   - 已存在 → 提示已配置，不覆盖（保护用户已有配置）
  */
 
@@ -17,7 +17,7 @@ const __filename: string = fileURLToPath(import.meta.url);
 const __dirname: string = path.dirname(__filename);
 const ROOT: string = path.join(__dirname, '..');
 
-const CONFIG_PATH: string = path.join(ROOT, 'src/config.ts');
+const CONFIG_PATH: string = path.join(ROOT, 'config.ts');
 const EXAMPLE_PATH: string = path.join(ROOT, 'config.example.ts');
 
 console.log('='.repeat(50));
@@ -27,7 +27,7 @@ console.log('');
 
 // 1. 检查 config 是否已存在
 if (fs.existsSync(CONFIG_PATH)) {
-  console.log('✅ src/config.ts 已存在，跳过创建（不覆盖已有配置）');
+  console.log('✅ config.ts 已存在，跳过创建（不覆盖已有配置）');
   console.log('');
   console.log('如需重新配置，请手动编辑：');
   console.log(`   ${CONFIG_PATH}`);
@@ -46,7 +46,7 @@ if (!fs.existsSync(EXAMPLE_PATH)) {
 
 // 3. 复制模板
 fs.copyFileSync(EXAMPLE_PATH, CONFIG_PATH);
-console.log('✅ 已创建 src/config.ts（从 config.example.ts 复制）');
+console.log('✅ 已创建 config.ts（从 config.example.ts 复制）');
 console.log('');
 console.log('─'.repeat(50));
 console.log('📌 接下来请编辑配置文件，填入真实凭证：');

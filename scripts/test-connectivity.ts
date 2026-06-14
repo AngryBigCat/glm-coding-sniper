@@ -2,7 +2,7 @@
 // 用 batch-preview 接口（空 ticket）探测，失败/401 也属正常（说明只是 token 无效）
 
 import https from 'node:https';
-import { AUTH_TOKEN } from '../src/config.js';
+import { AUTH_TOKEN } from '../config.js';
 
 interface ProbeResult {
   status?: number;
@@ -98,5 +98,5 @@ if (t1.status && t1.status >= 200 && t1.status < 500) {
 if (t2.body && typeof t2.body === 'object' && 'code' in t2.body && t2.body.code === 200) {
   console.log('✅ Token 有效，可正常抢购');
 } else {
-  console.log('⚠️  Token 无效 — 这只是测试脚本，实际抢购前请在 src/config.ts 填入真实 token');
+  console.log('⚠️  Token 无效 — 这只是测试脚本，实际抢购前请在 config.ts 填入真实 token');
 }

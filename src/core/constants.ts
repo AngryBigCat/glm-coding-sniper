@@ -5,7 +5,7 @@
  * 自身依赖：仅 config.js（HEADERS 需要 AUTH_TOKEN）
  */
 
-import { AUTH_TOKEN } from '../config.js';
+import { AUTH_TOKEN } from '../../config.js';
 import type { BillingCycle, PayType, Product } from './types.js';
 
 // ===== 运行时配置 =====
@@ -53,3 +53,14 @@ export const HEADERS: Record<string, string> = {
   'user-agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
 };
+
+// ===== 启动横幅（读 CONFIG 展示监控信息）=====
+export function printBanner(): void {
+  console.log('='.repeat(60));
+  console.log('GLM Coding Plan 抢购脚本 v7 — 自动出码版');
+  console.log('监控: Lite月¥49 | Lite季¥132.3 | Pro月¥149 | Pro季¥402.3 | Max月¥469 | Max季¥1266.3 | Lite年¥470.4 | Pro年¥1430.4 | Max年¥4502.4');
+  console.log('策略: 哪个有货下哪个，优先级 Lite月 > Lite季 > Pro月 > Pro季 > Max月 > Max季 > Lite年 > Pro年 > Max年');
+  console.log(`支付: ${CONFIG.payType === 'WE_CHAT' ? '微信' : '支付宝'}`);
+  console.log('='.repeat(60));
+  console.log('');
+}

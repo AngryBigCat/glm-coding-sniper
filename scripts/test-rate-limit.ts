@@ -15,7 +15,7 @@
 
 import https from 'node:https';
 import http from 'node:http';
-import { AUTH_TOKEN } from '../src/config.js';
+import { AUTH_TOKEN } from '../config.js';
 
 // ===== 配置（临时测试用） =====
 const TEST_PROXIES: string[] | null = null; // 测试代理轮换效果

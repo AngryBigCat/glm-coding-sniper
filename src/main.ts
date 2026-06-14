@@ -6,49 +6,20 @@
  *   1. 启动 ticket 服务 + 自动打开浏览器（server 直接返回验证码页面）
  *   2. 浏览器自动出码 → ticket 入共享池
  *   3. 脚本轮询全部方案库存（无验证码）
- *   4. 哪个有货就下哪个（优先级见 constants.ts PRODUCTS）
+ *   4. 哪个有货就下哪个（优先级见 core/constants.ts PRODUCTS）
  *   5. 并发用全部 ticket 同时打 pay/preview → 谁先拿到 bizId 就用谁下单
  *
  * 用法: npm start
  *
- * 架构：本文件只做编排（启动服务→验证→进入抢购循环），
- *       业务逻辑在 api.ts，基础设施在 http-client.ts，常量在 constants.ts。
+ * 架构：本文件只含 main() 主流程编排。
+ *       业务逻辑在 core/api.ts，基础设施在 core/http-client.ts，
+ *       常量与横幅在 core/constants.ts，HTTP 服务在 server/ticket-server.ts。
  */
 
-import { CONFIG } from './constants.js';
-import { log } from './http-client.js';
-import { checkAllStock, placeOrder, verifyAuth } from './api.js';
-import { startServer, openBrowser, setPhase, shiftTicket, poolSize } from '../server/ticket-server.js';
-
-// ===== 编排工具 =====
-function printBanner(): void {
-  console.log('='.repeat(60));
-  console.log('GLM Coding Plan 抢购脚本 v7 — 自动出码版');
-  console.log('监控: Lite月¥49 | Lite季¥132.3 | Pro月¥149 | Pro季¥402.3 | Max月¥469 | Max季¥1266.3 | Lite年¥470.4 | Pro年¥1430.4 | Max年¥4502.4');
-  console.log('策略: 哪个有货下哪个，优先级 Lite月 > Lite季 > Pro月 > Pro季 > Max月 > Max季 > Lite年 > Pro年 > Max年');
-  console.log(`支付: ${CONFIG.payType === 'WE_CHAT' ? '微信' : '支付宝'}`);
-  console.log('='.repeat(60));
-  console.log('');
-}
-
-// 等待池子里至少有 minSize 个 ticket
-function waitForTickets(minSize = 1): Promise<void> {
-  return new Promise((resolve) => {
-    if (poolSize() >= minSize) {
-      resolve();
-      return;
-    }
-    log(`⏳ 等待至少 ${minSize} 个 ticket 入池（当前 ${poolSize()} 个）...`);
-    log('   浏览器里点「自动循环出码」，拖滑块即可，脚本会自动接力');
-    const timer = setInterval(() => {
-      if (poolSize() >= minSize) {
-        clearInterval(timer);
-        log(`✅ 池子已有 ${poolSize()} 个 ticket，继续`);
-        resolve();
-      }
-    }, 500);
-  });
-}
+import { CONFIG, printBanner } from './core/constants.js';
+import { log } from './core/http-client.js';
+import { checkAllStock, placeOrder, verifyAuth, waitForTickets } from './core/api.js';
+import { startServer, openBrowser, setPhase, shiftTicket, poolSize } from './server/ticket-server.js';
 
 // ===== 主流程 =====
 async function main(): Promise<void> {
@@ -68,14 +39,14 @@ async function main(): Promise<void> {
   // 2. 验证登录（不等 ticket，先验 token）
   if (!(await verifyAuth())) {
     setPhase('failed', '登录失效');
-    log('❌ 登录失效，请检查 src/config.ts 的 AUTH_TOKEN');
+    log('❌ 登录失效，请检查 config.ts 的 AUTH_TOKEN');
     log('   服务保持运行，修复 token 后重启脚本');
     return;
   }
   log('✅ 登录有效');
 
   // 3. 等首批 ticket（至少 1 个）入池
-  await waitForTickets(1);
+  await waitForTickets(poolSize, 1);
 
   // 4. 进入抢购循环：库存监控 + 下单
   setPhase('sniping', `池子 ${poolSize()} 个 ticket`);
@@ -112,7 +83,7 @@ async function main(): Promise<void> {
           // 池子空了就等新 ticket
           if (poolSize() === 0) {
             log('⏳ 池子暂时空了，等待新 ticket 入池...');
-            await waitForTickets(1);
+            await waitForTickets(poolSize, 1);
           }
 
           // 立即下单（注入 ticket 池操作，解耦业务层与服务层）
@@ -139,7 +110,7 @@ async function main(): Promise<void> {
             if (poolSize() === 0) {
               log('⏳ ticket 池空了，等新 ticket 入池继续...');
               setPhase('collecting', 'ticket 耗尽，请继续拖滑块');
-              await waitForTickets(1);
+              await waitForTickets(poolSize, 1);
               setPhase('sniping', `池子 ${poolSize()} 个 ticket`);
             }
           }

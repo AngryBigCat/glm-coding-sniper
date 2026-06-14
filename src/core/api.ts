@@ -8,7 +8,7 @@
  *           不直接 import ticket-server，业务层与服务层解耦。
  */
 
-import { CUSTOMER_ID } from '../config.js';
+import { CUSTOMER_ID } from '../../config.js';
 import { CONFIG, PRODUCTS, REFER_1090 } from './constants.js';
 import { api, log } from './http-client.js';
 import type {
@@ -28,6 +28,25 @@ import type {
 export interface OrderDeps {
   shiftTicket: () => TicketCred | undefined;
   poolSize: () => number;
+}
+
+// ===== 等待池子里至少有 minSize 个 ticket（poolSize 注入避免循环依赖）=====
+export function waitForTickets(poolSize: () => number, minSize = 1): Promise<void> {
+  return new Promise((resolve) => {
+    if (poolSize() >= minSize) {
+      resolve();
+      return;
+    }
+    log(`⏳ 等待至少 ${minSize} 个 ticket 入池（当前 ${poolSize()} 个）...`);
+    log('   浏览器里点「自动循环出码」，拖滑块即可，脚本会自动接力');
+    const timer = setInterval(() => {
+      if (poolSize() >= minSize) {
+        clearInterval(timer);
+        log(`✅ 池子已有 ${poolSize()} 个 ticket，继续`);
+        resolve();
+      }
+    }, 500);
+  });
 }
 
 // ===== 验证登录 =====

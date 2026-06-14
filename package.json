@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "智谱 GLM Coding Plan 订阅抢购工具",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "src/main.ts",
   "private": true,
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "tsx src/index.ts",
+    "start": "tsx src/main.ts",
     "setup": "tsx scripts/setup.ts",
     "test:connect": "tsx scripts/test-connectivity.ts",
     "test:ratelimit": "tsx scripts/test-rate-limit.ts",

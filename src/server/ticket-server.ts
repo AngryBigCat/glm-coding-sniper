@@ -5,7 +5,7 @@
  *   1. 起本地 HTTP 服务接收浏览器推送的 ticket
  *   2. 维护共享 ticket 池
  *   3. 暴露抢购状态给浏览器（让出码页知道何时停止）
- *   4. GET / 直接返回验证码页面（集成 captcha-helper.html）
+ *   4. GET / 直接返回验证码页面（集成 captcha.html）
  *
  * 接口：
  *   GET  /          → 返回验证码页面 HTML
@@ -16,7 +16,7 @@
 
 import http from 'node:http';
 import { exec } from 'node:child_process';
-import { renderPage } from './captcha-page.js';
+import { renderPage } from '../pages/captcha.js';
 import type { ServerState, Phase, TicketCred, StatusResponse, PushResponse } from '../core/types.js';
 
 export const PORT = 3737;
