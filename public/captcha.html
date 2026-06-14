@@ -7,16 +7,23 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, 'Segoe UI', sans-serif;
-      display: flex; justify-content: center; align-items: center;
-      min-height: 100vh; background: #f0f2f5;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; background: #f0f2f5; padding: 20px;
     }
-    .card {
+    /* 左右分栏容器 */
+    .layout {
+      display: flex; gap: 20px; max-width: 1200px; width: 100%;
+    }
+    .col {
       background: white; border-radius: 12px;
-      padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      width: 560px; text-align: center;
+      padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      flex: 1; min-width: 0;
     }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    .desc { color: #666; font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+    .col-left { flex: 0 0 420px; order: 2; }
+    .col-right { flex: 1; order: 1; }
+    h1 { font-size: 18px; margin-bottom: 8px; }
+    h2 { font-size: 15px; margin-bottom: 8px; color: #333; }
+    .desc { color: #666; font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
     .btn {
       background: #1677ff; color: white; border: none;
       padding: 14px 32px; border-radius: 8px;
@@ -46,6 +53,7 @@
     .phase-idle { background: #f0f0f0; color: #666; }
     .phase-collecting { background: #fff7e6; color: #d46b08; }
     .phase-sniping { background: #fff1f0; color: #cf1322; }
+    .phase-paused { background: #fff7e6; color: #d46b08; }
     .phase-done { background: #f6ffed; color: #389e0d; }
     .phase-failed { background: #fff2f0; color: #cf1322; }
     .progress-bar {
@@ -66,63 +74,172 @@
     .server-status { margin-top: 8px; font-size: 12px; }
     .server-ok { color: #52c41a; }
     .server-err { color: #cf1322; }
+
+    /* ===== 监控面板 ===== */
+    .monitor-panel {
+      margin-top: 16px; padding: 14px; background: #fafafa;
+      border: 1px solid #f0f0f0; border-radius: 8px; text-align: left;
+    }
+    .monitor-title {
+      font-size: 13px; font-weight: 600; color: #333;
+      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .monitor-title .badge { font-size: 11px; color: #888; font-weight: 400; }
+
+    /* 库存灯 */
+    .stock-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .stock-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px; background: white; border-radius: 6px;
+      font-size: 12px; border: 1px solid #f0f0f0;
+    }
+    .stock-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-green { background: #52c41a; box-shadow: 0 0 6px #52c41a80; }
+    .dot-yellow { background: #faad14; }
+    .dot-red { background: #ff4d4f; }
+    .dot-unknown { background: #d9d9d9; }
+    .stock-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* 日志流 */
+    .log-stream {
+      max-height: 180px; overflow-y: auto; background: #1e1e1e;
+      border-radius: 6px; padding: 8px; font-family: 'Consolas', monospace;
+    }
+    .log-stream::-webkit-scrollbar { width: 6px; }
+    .log-stream::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+    .log-line {
+      font-size: 11px; color: #d4d4d4; padding: 2px 0;
+      line-height: 1.5; word-break: break-all;
+    }
+    .log-time { color: #6a9955; margin-right: 6px; }
+    .log-line.ok { color: #4ec9b0; }
+    .log-line.err { color: #f48771; }
+
+    /* 下单结果卡片 */
+    .order-card {
+      padding: 12px; border-radius: 8px; font-size: 13px;
+    }
+    .order-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .order-fail { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+    .order-card .order-title { font-weight: 600; margin-bottom: 4px; }
+    .order-card a { color: #1677ff; word-break: break-all; }
+    .order-empty { color: #999; font-size: 12px; text-align: center; padding: 12px; }
+
+    /* 统计 */
+    .stat-row { display: flex; gap: 16px; }
+    .stat-item { flex: 1; text-align: center; padding: 8px; background: white; border-radius: 6px; border: 1px solid #f0f0f0; }
+    .stat-value { font-size: 18px; font-weight: 700; color: #1677ff; font-family: monospace; }
+    .stat-label { font-size: 11px; color: #888; margin-top: 2px; }
   </style>
 </head>
 <body>
-<div class="card">
-  <h1>🔐 GLM Coding Plan 验证码生成器</h1>
-  <p class="desc">
-    拖完滑块会自动推送到抢购脚本。脚本启动后选「自动循环」模式，
-    你只需拖滑块，其余全自动。
-  </p>
+<div class="layout">
+  <!-- ===== 左栏：验码 ===== -->
+  <div class="col col-left">
+    <h1>🔐 验证码生成器</h1>
+    <p class="desc">
+      拖完滑块自动推送。选「自动循环」模式，只需拖滑块。
+    </p>
 
-  <div id="serverStatus" class="server-status"></div>
+    <div id="serverStatus" class="server-status"></div>
 
-  <!-- 主操作按钮 -->
-  <div style="margin-top: 16px;">
-    <button class="btn" id="autoBtn" onclick="toggleAuto()">⚡ 自动循环出码</button>
+    <!-- 主操作按钮 -->
+    <div style="margin-top: 14px;">
+      <button class="btn" id="autoBtn" onclick="toggleAuto()">⚡ 自动循环出码</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn-sm" onclick="manualOne()">手动出一个</button>
+      <button class="btn-sm" onclick="stopAuto()">⏹ 停止</button>
+    </div>
+
+    <!-- 验码状态 -->
+    <div class="status-panel" id="statusPanel">
+      <div class="status-row">
+        <span class="label">抢购阶段</span>
+        <span><span class="phase-badge phase-idle" id="phaseBadge">等待启动</span></span>
+      </div>
+      <div class="status-row">
+        <span class="label">池中 ticket</span>
+        <span class="value" id="poolSize">0</span>
+      </div>
+      <div class="status-row">
+        <span class="label">已生产 / 已消费</span>
+        <span class="value"><span id="totalProduced">0</span> / <span id="totalConsumed">0</span></span>
+      </div>
+      <div class="status-row">
+        <span class="label">本页本次出码</span>
+        <span class="value" id="localProduced">0</span>
+      </div>
+      <div class="msg info" id="msgBox">连接抢购脚本中...</div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- 最近出码记录 -->
+    <div style="text-align:left;">
+      <div style="font-size:13px; font-weight:600; color:#333; margin-bottom:6px;">最近 5 个 ticket</div>
+      <div id="recentList" style="font-size:11px; color:#888; font-family:monospace; max-height:80px; overflow:auto;">
+        （尚无）
+      </div>
+    </div>
+
+    <p class="note">
+      每个 ticket 有效期约 3-5 分钟。<br>
+      滑块完成会自动 POST 到 <code>/push</code>。
+    </p>
   </div>
 
-  <div class="actions">
-    <button class="btn-sm" onclick="manualOne()">手动出一个</button>
-    <button class="btn-sm" onclick="stopAuto()">⏹ 停止</button>
+  <!-- ===== 右栏：抢购监控 ===== -->
+  <div class="col col-right">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h2 style="margin:0;">📊 抢购监控</h2>
+      <button class="btn-sm" id="pauseBtn" onclick="togglePause()">⏸ 暂停抢购</button>
+    </div>
+
+    <!-- 库存监控 -->
+    <div class="monitor-panel">
+      <div class="monitor-title">
+        <span>📦 库存监控</span>
+        <span class="badge" id="stockUpdateTime">未查询</span>
+      </div>
+      <div class="stock-grid" id="stockGrid">
+        <div class="stock-item"><span class="stock-dot dot-unknown"></span><span class="stock-name">等待数据...</span></div>
+      </div>
+    </div>
+
+    <!-- 下单结果 -->
+    <div class="monitor-panel">
+      <div class="monitor-title"><span>🎯 最近下单</span></div>
+      <div id="orderCard"><div class="order-empty">尚未尝试下单</div></div>
+    </div>
+
+    <!-- 统计 -->
+    <div class="monitor-panel">
+      <div class="stat-row">
+        <div class="stat-item">
+          <div class="stat-value" id="statCheckCount">0</div>
+          <div class="stat-label">库存查询次数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statUptime">0s</div>
+          <div class="stat-label">运行时长</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 日志流 -->
+    <div class="monitor-panel">
+      <div class="monitor-title"><span>📜 抢购日志</span><span class="badge">最近 30 条</span></div>
+      <div class="log-stream" id="logStream">
+        <div class="log-line" style="color:#666;">等待日志...</div>
+      </div>
+    </div>
   </div>
-
-  <!-- 抢购状态面板 -->
-  <div class="status-panel" id="statusPanel">
-    <div class="status-row">
-      <span class="label">抢购阶段</span>
-      <span><span class="phase-badge phase-idle" id="phaseBadge">等待启动</span></span>
-    </div>
-    <div class="status-row">
-      <span class="label">池中 ticket</span>
-      <span class="value" id="poolSize">0</span>
-    </div>
-    <div class="status-row">
-      <span class="label">已生产 / 已消费</span>
-      <span class="value"><span id="totalProduced">0</span> / <span id="totalConsumed">0</span></span>
-    </div>
-    <div class="status-row">
-      <span class="label">本页本次出码</span>
-      <span class="value" id="localProduced">0</span>
-    </div>
-    <div class="msg info" id="msgBox">连接抢购脚本中...</div>
-  </div>
-
-  <hr class="sep">
-
-  <!-- 最近出码记录（调试用） -->
-  <div style="text-align:left;">
-    <div style="font-size:13px; font-weight:600; color:#333; margin-bottom:6px;">最近 5 个 ticket</div>
-    <div id="recentList" style="font-size:11px; color:#888; font-family:monospace; max-height:100px; overflow:auto;">
-      （尚无）
-    </div>
-  </div>
-
-  <p class="note">
-    每个 ticket 有效期约 3-5 分钟。<br>
-    滑块完成会自动 POST 到 <code>/push</code>。
-  </p>
 </div>
 
 <script>
@@ -229,6 +346,19 @@ function stopAuto() {
   setMsg('已停止自动循环', 'info');
 }
 
+// ===== 暂停/继续抢购 =====
+async function togglePause() {
+  const btn = document.getElementById('pauseBtn');
+  const isPausedNow = btn.textContent.includes('继续');
+  try {
+    const endpoint = isPausedNow ? '/resume' : '/pause';
+    await fetch(endpoint, { method: 'POST' });
+    // 按钮状态由 pollStatus 自动更新
+  } catch (e) {
+    setMsg('暂停/继续失败：抢购脚本未启动', 'err');
+  }
+}
+
 function manualOne() {
   if (!window.TencentCaptcha) { setMsg('验证码 SDK 还在加载中', 'err'); return; }
   showOneCaptcha();
@@ -264,20 +394,110 @@ async function pollStatus() {
       idle: '等待启动',
       collecting: '收集 ticket',
       sniping: '抢购中',
+      paused: '已暂停',
       done: '抢购成功 🎉',
       failed: '抢购失败',
     }[d.phase] || d.phase;
     badge.textContent = phaseText + (d.message ? ' · ' + d.message : '');
     badge.className = 'phase-badge phase-' + d.phase;
 
+    // 更新暂停按钮状态
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (d.phase === 'paused') {
+      pauseBtn.textContent = '▶️ 继续抢购';
+      pauseBtn.className = 'btn-sm primary';
+    } else if (d.phase === 'sniping') {
+      pauseBtn.textContent = '⏸ 暂停抢购';
+      pauseBtn.className = 'btn-sm';
+    } else {
+      // done/failed/idle/collecting 时禁用暂停按钮
+      pauseBtn.disabled = (d.phase === 'done' || d.phase === 'failed' || d.phase === 'idle');
+    }
+
     // 自动模式下，若抢购结束则停止出码
     if (autoMode && (d.phase === 'done' || d.phase === 'failed')) {
       stopAuto();
     }
+
+    // ===== 渲染监控面板 =====
+    renderStock(d.lastStock || []);
+    renderOrder(d.lastOrder);
+    renderStats(d.checkCount || 0, d.startedAt);
+    renderLogs(d.logs || []);
   } catch (e) {
     serverReachable = false;
     document.getElementById('serverStatus').innerHTML = '<span class="server-err">❌ 抢购脚本未启动</span>';
   }
+}
+
+// ===== 库存监控灯 =====
+function renderStock(items) {
+  const grid = document.getElementById('stockGrid');
+  if (!items || items.length === 0) {
+    grid.innerHTML = '<div class="stock-item"><span class="stock-dot dot-unknown"></span><span class="stock-name">等待数据...</span></div>';
+    document.getElementById('stockUpdateTime').textContent = '未查询';
+    return;
+  }
+  const dotClass = { green: 'dot-green', yellow: 'dot-yellow', red: 'dot-red', unknown: 'dot-unknown' };
+  grid.innerHTML = items.map(it =>
+    `<div class="stock-item"><span class="stock-dot ${dotClass[it.status] || 'dot-unknown'}"></span><span class="stock-name">${it.name}</span></div>`
+  ).join('');
+  document.getElementById('stockUpdateTime').textContent = `第 ${document.getElementById('statCheckCount').textContent} 次查询`;
+}
+
+// ===== 下单结果卡片 =====
+function renderOrder(order) {
+  const el = document.getElementById('orderCard');
+  if (!order) {
+    el.innerHTML = '<div class="order-empty">尚未尝试下单</div>';
+    return;
+  }
+  const time = new Date(order.ts).toLocaleTimeString('zh-CN', { hour12: false });
+  if (order.ok) {
+    const sign = order.sign ? `<div style="margin-top:6px;"><a href="${order.sign}" target="_blank">${order.sign}</a></div>` : '';
+    el.innerHTML = `<div class="order-card order-success">
+      <div class="order-title">✅ 下单成功 · ${order.productName} · ¥${order.payAmount}</div>
+      <div style="font-size:11px;opacity:0.7;">${time}</div>${sign}
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="order-card order-fail">
+      <div class="order-title">❌ 下单失败</div>
+      <div style="font-size:12px;">${order.error || '未知错误'}</div>
+      <div style="font-size:11px;opacity:0.7;margin-top:4px;">${time}</div>
+    </div>`;
+  }
+}
+
+// ===== 统计 =====
+function renderStats(checkCount, startedAt) {
+  document.getElementById('statCheckCount').textContent = checkCount;
+  if (startedAt) {
+    const secs = Math.floor((Date.now() - startedAt) / 1000);
+    const str = secs >= 60 ? `${Math.floor(secs / 60)}m${secs % 60}s` : `${secs}s`;
+    document.getElementById('statUptime').textContent = str;
+  }
+}
+
+// ===== 日志流 =====
+function renderLogs(logs) {
+  const el = document.getElementById('logStream');
+  if (!logs || logs.length === 0) {
+    el.innerHTML = '<div class="log-line" style="color:#666;">等待日志...</div>';
+    return;
+  }
+  // 最新的在顶部
+  const html = [...logs].reverse().map(entry => {
+    const time = new Date(entry.ts).toLocaleTimeString('zh-CN', { hour12: false });
+    let cls = 'log-line';
+    if (entry.text.includes('✅') || entry.text.includes('🏆')) cls += ' ok';
+    else if (entry.text.includes('❌') || entry.text.includes('🔴') || entry.text.includes('⚠️')) cls += ' err';
+    return `<div class="${cls}"><span class="log-time">${time}</span>${escapeHtml(entry.text)}</div>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ===== 初始化：加载 SDK =====
@@ -296,7 +516,7 @@ loadSDK()
   .then(() => {
     setMsg('✅ 验证码 SDK 已就绪。点「自动循环出码」开始', 'ok');
     pollStatus();
-    setInterval(pollStatus, 1000);
+    setInterval(pollStatus, 500);
   })
   .catch(() => setMsg('❌ 验证码 SDK 加载失败，请检查网络后刷新', 'err'));
 </script>

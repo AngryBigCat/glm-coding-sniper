@@ -17,9 +17,23 @@
 import http from 'node:http';
 import { exec } from 'node:child_process';
 import { renderPage } from '../pages/captcha.js';
-import type { ServerState, Phase, TicketCred, StatusResponse, PushResponse } from '../core/types.js';
+import type {
+  ServerState,
+  Phase,
+  TicketCred,
+  StatusResponse,
+  PushResponse,
+  StockProduct,
+  StockSnapshotItem,
+  LogEntry,
+  OrderRecord,
+  OrderResult,
+} from '../core/types.js';
 
 export const PORT = 3737;
+
+/** 日志环形缓冲最大条数 */
+const MAX_LOGS = 30;
 
 // ===== 共享状态 =====
 export const state: ServerState = {
@@ -29,6 +43,11 @@ export const state: ServerState = {
   totalProduced: 0,
   totalConsumed: 0,
   startedAt: null,
+  // 监控面板数据
+  lastStock: [],
+  logs: [],
+  lastOrder: null,
+  checkCount: 0,
 };
 
 function now(): string {
@@ -55,6 +74,62 @@ export function poolSize(): number {
 export function setPhase(phase: Phase, message: string = ''): void {
   state.phase = phase;
   if (message) state.message = message;
+}
+
+// ===== 抢购暂停/继续（被浏览器按钮控制）=====
+let paused = false;
+
+export function isPaused(): boolean {
+  return paused;
+}
+
+export function setPaused(p: boolean): void {
+  paused = p;
+  if (p) {
+    state.phase = 'paused';
+    state.message = '已暂停';
+  } else {
+    state.phase = 'sniping';
+    state.message = '已继续';
+  }
+}
+
+// ===== 监控面板 setter（被 main.ts 调用）=====
+
+/** 更新库存快照（把 StockProduct 转成精简的展示数据） */
+export function setLastStock(products: StockProduct[], count: number): void {
+  state.lastStock = products.map((p) => {
+    let status: StockSnapshotItem['status'];
+    if (!p.apiData) status = 'unknown';
+    else if (p.apiData.soldOut) status = 'yellow';
+    else if (p.apiData.forbidden) status = 'red';
+    else status = 'green';
+    return { name: p.name, status };
+  });
+  state.checkCount = count;
+}
+
+/** 追加一条日志（环形缓冲，超过 MAX_LOGS 丢弃最早的） */
+export function appendLog(text: string): void {
+  const entry: LogEntry = { ts: Date.now(), text };
+  state.logs.push(entry);
+  if (state.logs.length > MAX_LOGS) state.logs.shift();
+}
+
+/** 记录最近一次下单结果 */
+export function recordOrder(result: OrderResult): void {
+  if ('success' in result) {
+    const rec: OrderRecord = {
+      ok: true,
+      productName: result.productName,
+      payAmount: result.payAmount,
+      sign: result.data.sign,
+      ts: Date.now(),
+    };
+    state.lastOrder = rec;
+  } else {
+    state.lastOrder = { ok: false, error: result.error, ts: Date.now() };
+  }
 }
 
 // ===== HTTP 服务 =====
@@ -115,7 +190,7 @@ export function startServer(): http.Server {
       return;
     }
 
-    // GET /status — 浏览器查询抢购状态
+    // GET /status — 浏览器查询抢购状态（含监控面板数据）
     if (req.method === 'GET' && url.pathname === '/status') {
       const resp: StatusResponse = {
         phase: state.phase,
@@ -124,6 +199,10 @@ export function startServer(): http.Server {
         totalProduced: state.totalProduced,
         totalConsumed: state.totalConsumed,
         startedAt: state.startedAt,
+        lastStock: state.lastStock,
+        logs: state.logs,
+        lastOrder: state.lastOrder,
+        checkCount: state.checkCount,
       };
       sendJson(res, 200, resp);
       return;
@@ -133,6 +212,22 @@ export function startServer(): http.Server {
     if (req.method === 'GET' && url.pathname === '/pull') {
       const t = shiftTicket();
       sendJson(res, 200, { ok: !!t, ticket: t });
+      return;
+    }
+
+    // POST /pause — 暂停抢购循环
+    if (req.method === 'POST' && url.pathname === '/pause') {
+      setPaused(true);
+      console.log(`[${now()}] ⏸ 抢购已暂停`);
+      sendJson(res, 200, { ok: true, paused: true });
+      return;
+    }
+
+    // POST /resume — 继续抢购循环
+    if (req.method === 'POST' && url.pathname === '/resume') {
+      setPaused(false);
+      console.log(`[${now()}] ▶️ 抢购已继续`);
+      sendJson(res, 200, { ok: true, paused: false });
       return;
     }
 

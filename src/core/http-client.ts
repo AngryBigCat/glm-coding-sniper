@@ -14,8 +14,17 @@ export function ts(): string {
   return new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 }
 
+// 日志 sink：注入后每次 log() 调用会同时转发到浏览器监控面板
+// 用回调注入而非直接 import server，保持 core → server 的单向依赖
+let logSink: ((msg: string) => void) | null = null;
+
+export function setLogSink(fn: ((msg: string) => void) | null): void {
+  logSink = fn;
+}
+
 export function log(msg: string): void {
   console.log(`[${ts()}] ${msg}`);
+  logSink?.(msg); // 只传 msg（不含时间前缀），前端自己格式化时间
 }
 
 // ===== 请求封装 =====

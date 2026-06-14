@@ -5,7 +5,7 @@
 // ===== 基础字面量联合类型 =====
 
 /** 抢购阶段（ticket-server 的 state.phase） */
-export type Phase = 'idle' | 'collecting' | 'sniping' | 'done' | 'failed';
+export type Phase = 'idle' | 'collecting' | 'sniping' | 'paused' | 'done' | 'failed';
 
 /** 计费周期：月付=month, 季付=quarter, 年付=annual */
 export type BillingCycle = 'month' | 'quarter' | 'annual';
@@ -118,6 +118,28 @@ export type OrderResult = OrderSuccess | OrderError;
 
 // ===== ticket-server 共享状态 =====
 
+/** 库存快照条目（给浏览器展示用，精简自 StockProduct） */
+export interface StockSnapshotItem {
+  name: string; // 'Lite月付'
+  status: 'green' | 'yellow' | 'red' | 'unknown'; // 有货/售罄/禁购/未知
+}
+
+/** 日志条目（环形缓冲，最多 30 条） */
+export interface LogEntry {
+  ts: number; // Date.now()
+  text: string; // 日志内容（不含时间前缀，前端自己格式化）
+}
+
+/** 下单结果记录（最近一次） */
+export interface OrderRecord {
+  ok: boolean;
+  productName?: string;
+  payAmount?: number;
+  sign?: string; // 支付链接
+  error?: string;
+  ts: number;
+}
+
 export interface ServerState {
   pool: TicketCred[];
   phase: Phase;
@@ -125,6 +147,11 @@ export interface ServerState {
   totalProduced: number;
   totalConsumed: number;
   startedAt: number | null;
+  // 监控面板数据
+  lastStock: StockSnapshotItem[]; // 最近库存快照
+  logs: LogEntry[]; // 日志环形缓冲
+  lastOrder: OrderRecord | null; // 最近下单结果
+  checkCount: number; // 库存查询次数
 }
 
 // ===== HTTP 接口响应类型（给浏览器看的） =====
@@ -137,6 +164,11 @@ export interface StatusResponse {
   totalProduced: number;
   totalConsumed: number;
   startedAt: number | null;
+  // 监控面板数据
+  lastStock: StockSnapshotItem[];
+  logs: LogEntry[];
+  lastOrder: OrderRecord | null;
+  checkCount: number;
 }
 
 /** POST /push 响应体 */

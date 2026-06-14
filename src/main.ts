@@ -17,9 +17,12 @@
  */
 
 import { CONFIG, printBanner } from './core/constants.js';
-import { log } from './core/http-client.js';
+import { log, setLogSink } from './core/http-client.js';
 import { checkAllStock, placeOrder, verifyAuth, waitForTickets } from './core/api.js';
-import { startServer, openBrowser, setPhase, shiftTicket, poolSize } from './server/ticket-server.js';
+import {
+  startServer, openBrowser, setPhase, shiftTicket, poolSize,
+  appendLog, setLastStock, recordOrder, isPaused,
+} from './server/ticket-server.js';
 
 // ===== 主流程 =====
 async function main(): Promise<void> {
@@ -27,6 +30,7 @@ async function main(): Promise<void> {
 
   // 1. 启动 ticket 服务 + 打开浏览器
   startServer();
+  setLogSink(appendLog); // 注入日志转发：之后所有 log() 调用自动进浏览器监控面板
   openBrowser();
   setPhase('collecting', '等待拖滑块');
   console.log('');
@@ -55,6 +59,11 @@ async function main(): Promise<void> {
   log('🔄 开始监控全部方案库存（200ms/次，Ctrl+C 停止）...');
 
   while (!ordered) {
+    // 暂停检查：被浏览器暂停时阻塞在这里，不查询不下单
+    if (isPaused()) {
+      await new Promise((r) => setTimeout(r, 500));
+      continue;
+    }
     checkCount++;
     try {
       const stock = await checkAllStock(CONFIG.billingCycle, CONFIG.autoRenew);
@@ -76,6 +85,9 @@ async function main(): Promise<void> {
           .join(' ');
         log(`${statusLine} | 池:${poolSize()} | #${checkCount}`);
 
+        // 上报库存快照到监控面板
+        setLastStock(stock.products, checkCount);
+
         if (available.length > 0) {
           const target = available[0]!;
           log(`🎉🎉🎉 ${target.name} 有库存！#${checkCount}`);
@@ -88,6 +100,9 @@ async function main(): Promise<void> {
 
           // 立即下单（注入 ticket 池操作，解耦业务层与服务层）
           const result = await placeOrder(stock.products, { shiftTicket, poolSize });
+
+          // 上报下单结果到监控面板
+          recordOrder(result);
 
           if ('success' in result) {
             ordered = true;
