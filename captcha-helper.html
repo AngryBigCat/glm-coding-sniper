@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>验证码生成器 — GLM Coding Plan</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; background: #f0f2f5;
+    }
+    .card {
+      background: white; border-radius: 12px;
+      padding: 40px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      width: 560px; text-align: center;
+    }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    .desc { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .btn {
+      background: #1677ff; color: white; border: none;
+      padding: 14px 32px; border-radius: 8px;
+      font-size: 16px; cursor: pointer; width: 100%;
+    }
+    .btn:hover { background: #4096ff; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-sm {
+      background: #f5f5f5; border: 1px solid #d9d9d9;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .btn-sm:hover { background: #e8e8e8; }
+    .btn-sm.primary { background: #1677ff; color: white; border-color: #1677ff; }
+    .btn-sm.primary:hover { background: #4096ff; }
+    .current { margin-top: 20px; text-align: left; display: none; }
+    .current label { font-size: 12px; color: #888; display: block; margin-top: 8px; }
+    .current input { width: 100%; margin-top: 4px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; background: #fafafa; }
+    .current input.code { font-family: monospace; }
+    .current .slot-header { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; margin-bottom: 4px; }
+    .current .slot-header span { font-size: 13px; font-weight: 600; }
+    .current .slot-header .status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+    .current .slot-header .status.pending { background: #fffbe6; color: #ad8b00; }
+    .current .slot-header .status.done { background: #f6ffed; color: #389e0d; }
+    .current .slot-header .status.skipped { background: #fff2f0; color: #cf1322; }
+    .current .slot-header .status.loading { background: #e6f4ff; color: #1677ff; }
+    .slot-block { border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; margin-top: 8px; }
+    .queue-wrap { margin-top: 16px; text-align: left; display: none; }
+    .queue-wrap .title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .queue-wrap .count { font-size: 12px; color: #888; }
+    .queue-wrap textarea {
+      width: 100%; height: 120px; padding: 8px; border: 1px solid #d9d9d9;
+      border-radius: 6px; font-size: 12px; font-family: monospace;
+      background: #fafafa; resize: none;
+    }
+    .actions { margin-top: 10px; display: flex; gap: 8px; justify-content: center; }
+    .note { margin-top: 16px; font-size: 12px; color: #999; }
+    .error-badge { margin-top: 12px; padding: 8px; background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; font-size: 13px; color: #cf1322; display: none; }
+    .success-badge { margin-top: 8px; padding: 6px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; font-size: 12px; color: #389e0d; display: none; text-align: center; }
+    .sep { margin: 16px 0; border: 0; border-top: 1px solid #f0f0f0; }
+    .batch-bar { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .batch-bar .btn-sm { padding: 8px 20px; font-size: 14px; }
+    .batch-bar .btn-sm.batch { background: #531dab; color: white; border-color: #531dab; }
+    .batch-bar .btn-sm.batch:hover { background: #722ed1; }
+    .batch-bar .btn-sm.batch:disabled { background: #d9d9d9; color: #999; border-color: #d9d9d9; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🔐 GLM Coding Plan 验证码生成器</h1>
+  <p class="desc">点「批量出码」一次性弹出 3 个滑块，全部拖完后一键复制</p>
+
+  <div id="errorBadge" class="error-badge"></div>
+
+  <!-- 批量操作栏 -->
+  <div class="batch-bar">
+    <button class="btn-sm batch" id="batchBtn" onclick="batchGenerate()" disabled>⏳ 加载中...</button>
+    <button class="btn-sm primary" onclick="copyQueue()">📋 一键复制全部</button>
+    <button class="btn-sm" onclick="clearQueue()">🗑️ 清空队列</button>
+  </div>
+
+  <!-- 3 个批量槽位 -->
+  <div class="current" id="batchPanel">
+    <div id="slot0" class="slot-block">
+      <div class="slot-header"><span>🔑 凭证 #1</span><span class="status pending" id="s0status">等待中</span></div>
+      <label>ticket</label><input class="code" id="s0ticket" readonly><label>randstr</label><input class="code" id="s0randstr" readonly>
+    </div>
+    <div id="slot1" class="slot-block">
+      <div class="slot-header"><span>🔑 凭证 #2</span><span class="status pending" id="s1status">等待中</span></div>
+      <label>ticket</label><input class="code" id="s1ticket" readonly><label>randstr</label><input class="code" id="s1randstr" readonly>
+    </div>
+    <div id="slot2" class="slot-block">
+      <div class="slot-header"><span>🔑 凭证 #3</span><span class="status pending" id="s2status">等待中</span></div>
+      <label>ticket</label><input class="code" id="s2ticket" readonly><label>randstr</label><input class="code" id="s2randstr" readonly>
+    </div>
+
+    <div id="batchDoneMsg" class="success-badge" style="margin-top:12px;"></div>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="addAllToQueue()">➕ 全部添加到队列</button>
+      <button class="btn-sm" onclick="resetBatch()">🔄 重置</button>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- 队列 -->
+  <div class="queue-wrap" id="queuePanel">
+    <div class="title">📋 凭证队列 <span class="count" id="queueCount">(0 个)</span></div>
+    <textarea id="queueOutput" readonly placeholder="生成的凭证会显示在这里&#10;全部完成后点「一键复制全部」"></textarea>
+    <div class="actions">
+      <button class="btn-sm primary" onclick="copyQueue()">📋 复制并自动添加到剪贴板</button>
+      <button class="btn-sm" onclick="clearQueue()">🗑️ 清空队列</button>
+    </div>
+  </div>
+
+  <p class="note">
+    每个 ticket 有效期约 3-5 分钟，<strong>9:55 开始连刷</strong>
+  </p>
+  <p class="note" style="color:#cf1322;">
+    终端脚本先启动 → 在提示处粘贴整批凭证 → 脚本自动轮询抢购
+  </p>
+</div>
+
+<script>
+// ===== 队列 =====
+let queue = [];
+let batchResults = [null, null, null];
+
+function updateQueueUI() {
+  const text = queue.map(c => `${c.ticket} ${c.randstr}`).join('\n');
+  document.getElementById('queueOutput').value = text;
+  document.getElementById('queueCount').textContent = `(${queue.length} 个)`;
+  document.getElementById('queuePanel').style.display = queue.length > 0 ? 'block' : 'none';
+}
+
+function addAllToQueue() {
+  let added = 0;
+  for (let i = 0; i < 3; i++) {
+    const t = document.getElementById(`s${i}ticket`).value;
+    const r = document.getElementById(`s${i}randstr`).value;
+    if (t && r && !queue.some(c => c.ticket === t)) {
+      queue.push({ ticket: t, randstr: r });
+      added++;
+    }
+  }
+  if (added === 0) { alert('没有可添加的凭证（已全部在队列中）'); return; }
+  updateQueueUI();
+  const msg = document.getElementById('batchDoneMsg');
+  msg.textContent = `✅ 已添加 ${added} 组到队列！`;
+  msg.style.display = 'block';
+}
+
+function copyQueue() {
+  if (queue.length === 0) {
+    // 如果队列为空但有批量结果，直接复制批量结果
+    const lines = [];
+    for (let i = 0; i < 3; i++) {
+      const t = document.getElementById(`s${i}ticket`).value;
+      const r = document.getElementById(`s${i}randstr`).value;
+      if (t && r) lines.push(`${t} ${r}`);
+    }
+    if (lines.length === 0) { alert('没有可复制的凭证'); return; }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      alert(`✅ 已复制 ${lines.length} 组凭证！`);
+    }).catch(() => {
+      prompt('复制失败，请手动复制：', lines.join('\n'));
+    });
+    return;
+  }
+  const text = queue.map(c => `${c.ticket} ${c.randstr}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    alert(`✅ 已复制 ${queue.length} 组凭证！请在终端粘贴`);
+  }).catch(() => {
+    prompt('复制失败，请手动复制：', text);
+  });
+}
+
+function clearQueue() {
+  if (queue.length === 0) return;
+  if (!confirm('确定清空队列？')) return;
+  queue = [];
+  updateQueueUI();
+}
+
+function resetBatch() {
+  for (let i = 0; i < 3; i++) {
+    document.getElementById(`s${i}ticket`).value = '';
+    document.getElementById(`s${i}randstr`).value = '';
+    setStatus(i, 'pending', '等待中');
+    batchResults[i] = null;
+  }
+  document.getElementById('batchDoneMsg').style.display = 'none';
+}
+
+function setStatus(idx, cls, text) {
+  const el = document.getElementById(`s${idx}status`);
+  el.className = `status ${cls}`;
+  el.textContent = text;
+}
+
+// ===== 验证码 =====
+function loadSDK() {
+  return new Promise((resolve, reject) => {
+    if (window.TencentCaptcha) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://turing.captcha.qcloud.com/TJCaptcha.js';
+    s.onload = () => {
+      document.getElementById('batchBtn').textContent = '⚡ 批量出码（3个）';
+      document.getElementById('batchBtn').disabled = false;
+      resolve();
+    };
+    s.onerror = () => {
+      document.getElementById('errorBadge').style.display = 'block';
+      document.getElementById('errorBadge').textContent = '⚠️ 验证码 SDK 加载失败，请刷新页面重试';
+      document.getElementById('batchBtn').textContent = '❌ 加载失败';
+      reject(new Error('SDK load failed'));
+    };
+    document.head.appendChild(s);
+  });
+}
+
+function checkAllDone() {
+  const done = batchResults.filter(r => r !== null).length;
+  if (done === 3) {
+    const msg = document.getElementById('batchDoneMsg');
+    msg.textContent = '🎉 全部 3 组已完成！点击「全部添加到队列」然后一键复制';
+    msg.style.display = 'block';
+    document.getElementById('batchBtn').disabled = false;
+    document.getElementById('batchBtn').textContent = '⚡ 继续批量出码（3个）';
+  } else if (done > 0) {
+    const msg = document.getElementById('batchDoneMsg');
+    msg.textContent = `${done}/3 完成，继续拖滑块...`;
+    msg.style.display = 'block';
+  }
+}
+
+function batchGenerate() {
+  // 显示批量面板
+  document.getElementById('batchPanel').style.display = 'block';
+
+  // 如果全部已完成，重置后重新来一轮
+  if (batchResults.every(r => r !== null)) {
+    resetBatch();
+  }
+
+  // 串行弹出：完成一个再弹下一个，避免弹窗冲突卡死
+  showNextSlot();
+}
+
+function showNextSlot() {
+  for (let i = 0; i < 3; i++) {
+    if (batchResults[i] === null) {
+      setStatus(i, 'loading', '弹出中...');
+      document.getElementById('batchBtn').disabled = true;
+      document.getElementById('batchBtn').textContent = `⏳ 出码中... (${i + 1}/3)`;
+
+      // 延迟 300ms 确保上一个弹窗完全销毁（如果有的话）
+      setTimeout(() => showCaptchaForSlot(i, i + 1 < 3 ? () => showNextSlot() : null), 300);
+      return;
+    }
+  }
+}
+
+function showCaptchaForSlot(slotIdx, onComplete) {
+  new TencentCaptcha('196026326', function(res) {
+    if (res.ret === 0) {
+      document.getElementById(`s${slotIdx}ticket`).value = res.ticket;
+      document.getElementById(`s${slotIdx}randstr`).value = res.randstr;
+      batchResults[slotIdx] = { ticket: res.ticket, randstr: res.randstr };
+      setStatus(slotIdx, 'done', '✅ 完成');
+      // 检查是否全部完成或触发下一个回调
+      if (typeof onComplete === 'function') {
+        setTimeout(onComplete, 200);
+      } else {
+        checkAllDone();
+      }
+    } else if (res.ret === 2) {
+      setStatus(slotIdx, 'skipped', '跳过');
+      // 跳过也继续下一个
+      if (typeof onComplete === 'function') {
+        setTimeout(onComplete, 200);
+      } else {
+        checkAllDone();
+      }
+    } else {
+      setStatus(slotIdx, 'skipped', `异常(ret=${res.ret})`);
+      if (typeof onComplete === 'function') {
+        setTimeout(onComplete, 200);
+      } else {
+        checkAllDone();
+      }
+    }
+  }, { mode: 'bind', type: 'popup', enableDarkMode: false, timeout: 60000 }).show();
+}
+
+// 初始化
+document.getElementById('batchBtn').disabled = true;
+document.getElementById('batchPanel').style.display = 'block';
+loadSDK().catch(() => {});
+</script>
+</body>
+</html>
