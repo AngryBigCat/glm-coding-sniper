@@ -4,19 +4,36 @@
 
 ## 使用方法
 
-1. 复制 `config.example.mjs` 为 `config.mjs`
-2. 填入你的 AUTH_TOKEN 和 CUSTOMER_ID（从浏览器获取）
-3. 运行脚本（会自动启动 ticket 服务并打开验证码页面）
-
 ```bash
-node glm-sniper-remote.mjs
+# 1. 首次安装：创建配置文件
+npm run setup
+
+# 2. 编辑 src/config.ts，填入 AUTH_TOKEN 和 CUSTOMER_ID
+
+# 3. 验证连通性（可选）
+npm run test:connect
+
+# 4. 启动抢购（会自动弹出浏览器）
+npm start
 ```
 
 脚本启动后：
-- 自动打开浏览器（`captcha-helper.html`）
+- 自动打开浏览器（`public/captcha-helper.html`）
 - 在浏览器里点「⚡ 自动循环出码」
 - 拖完一个滑块，ticket 自动入池，页面自动弹下一个
 - 抢到后脚本自动通知浏览器停止
+
+## 命令说明
+
+| 命令 | 说明 |
+|------|------|
+| `npm start` | 启动主抢购脚本（起服务 + 开浏览器 + 轮询下单） |
+| `npm run setup` | 首次安装引导，创建 `src/config.ts` 配置文件 |
+| `npm run test:connect` | 连通性诊断（验证 token 与网络，不消耗 ticket） |
+| `npm run test:ratelimit` | 限流压力测试（探测 555 阈值，不消耗 ticket） |
+| `npm run typecheck` | TypeScript 类型检查（不运行代码） |
+
+项目使用 TypeScript，通过 `tsx` 直接运行（无需编译）。首次使用前运行 `npm install` 安装依赖。
 
 ## 工作原理
 
@@ -25,9 +42,9 @@ node glm-sniper-remote.mjs
 ```
 ┌─────────────────────┐       ┌──────────────────────┐
 │  浏览器（生产者）     │       │  Node 主脚本（消费者） │
-│  captcha-helper.html │       │  glm-sniper-remote.mjs│
+│  captcha-helper.html │       │  src/sniper.mjs       │
 │                     │       │                      │
-│  自动循环弹滑块       │──────►│  ticket-server.mjs    │
+│  自动循环弹滑块       │──────►│  src/ticket-server.mjs│
 │  你拖完 → 自动 POST  │ /push │  维护共享 ticket 池    │
 │  → 自动弹下一个      │       │  轮询库存 → 有货下单   │
 │                     │◄──────│                      │
@@ -45,22 +62,24 @@ node glm-sniper-remote.mjs
    ```js
    document.cookie.split("; ").find(c => c.startsWith("bigmodel_token_production="))?.split("=")[1]
    ```
-3. 复制输出填到 `config.mjs`
+3. 复制输出填到 `src/config.mjs`
 
 ## 文件说明
 
 | 文件 | 说明 |
 |------|------|
-| `glm-sniper-remote.mjs` | **主脚本（消费者）** — 启动服务、轮询库存、并发下单 |
-| `ticket-server.mjs` | **桥接服务** — HTTP 接收 ticket、维护共享池、暴露抢购状态 |
-| `captcha-helper.html` | **验证码页面（生产者）** — 自动循环出码、拖完自动推送 |
-| `test_rate_limit.mjs` | 限流压力测试（不消耗 ticket，探测 555 阈值） |
-| `test_connectivity.mjs` | 连通性诊断（验证 token 与网络） |
-| `config.example.mjs` | 配置模板 |
+| `src/sniper.ts` | **主脚本（消费者）** — 启动服务、轮询库存、并发下单 |
+| `src/ticket-server.ts` | **桥接服务** — HTTP 接收 ticket、维护共享池、暴露抢购状态 |
+| `src/types.ts` | 共享 TypeScript 类型定义 |
+| `public/captcha-helper.html` | **验证码页面（生产者）** — 自动循环出码、拖完自动推送 |
+| `scripts/setup.ts` | 首次安装引导（创建配置文件） |
+| `scripts/test-connectivity.ts` | 连通性诊断（验证 token 与网络） |
+| `scripts/test-rate-limit.ts` | 限流压力测试（探测 555 阈值） |
+| `config.example.ts` | 配置模板（复制为 `src/config.ts`） |
 
 ## 操作步骤
 
-1. **9:55** 启动脚本：`node glm-sniper-remote.mjs`（自动弹出浏览器）
+1. **9:55** 启动脚本：`npm start`（自动弹出浏览器）
 2. **9:56** 在浏览器里点「⚡ 自动循环出码」
 3. **9:56~10:00** 持续拖滑块（每拖完一个自动入池，页面自动弹下一个）
 4. **10:00** 脚本自动秒杀（9 个套餐按优先级抢，哪个有货下哪个）
@@ -68,7 +87,7 @@ node glm-sniper-remote.mjs
 
 ## 配置说明
 
-编辑 `glm-sniper-remote.mjs` 顶部的 `CONFIG`：
+编辑 `src/sniper.mjs` 顶部的 `CONFIG`：
 
 ```js
 const CONFIG = {
@@ -103,7 +122,7 @@ const CONFIG = {
 
 脚本启动后的执行流程：
 
-1. **启动桥接服务** — `ticket-server.mjs` 监听 `http://localhost:3737`，自动打开浏览器
+1. **启动桥接服务** — `src/ticket-server.mjs` 监听 `http://localhost:3737`，自动打开浏览器
 2. **自动出码** — 你在浏览器点「自动循环出码」，拖滑块，ticket 自动 POST 入共享池
 3. **验证登录** — 调 `isLimitBuy` 接口校验 token
 4. **轮询库存**（每 200ms）— 调 `batch-preview`（不消耗 ticket），一次返回全部 9 个商品状态
@@ -117,5 +136,5 @@ const CONFIG = {
 ## 提示
 
 - 每个 ticket 有效期约 3-5 分钟，建议准备 5-15 个备用
-- 抢购前先用 `node test_rate_limit.mjs` 测当前网络的 555 限流情况
-- 填好 token 后用 `node test_connectivity.mjs` 验证是否生效
+- 抢购前先用 `npm run test:ratelimit` 测当前网络的 555 限流情况
+- 填好 token 后用 `npm run test:connect` 验证是否生效

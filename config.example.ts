@@ -1,8 +1,8 @@
 // GLM Coding Plan 抢购脚本配置
-// 复制为 config.mjs 并填入你的凭证
+// 复制为 src/config.ts 并填入你的凭证
 
-export const AUTH_TOKEN = 'YOUR_TOKEN_HERE';
-export const CUSTOMER_ID = 'YOUR_CUSTOMER_ID';
+export const AUTH_TOKEN: string = 'YOUR_TOKEN_HERE';
+export const CUSTOMER_ID: string = 'YOUR_CUSTOMER_ID';
 
 // 获取 AUTH_TOKEN：
 //   浏览器打开 https://www.bigmodel.cn/glm-coding 并登录

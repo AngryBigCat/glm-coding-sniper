@@ -4,7 +4,7 @@
  *
  * 目的: 在你投入真 ticket 之前，先搞清楚服务器什么节奏会 555
  *
- * 用法: node test_rate_limit.mjs
+ * 用法: npm run test:ratelimit
  *
  * 输出示例:
  *   📊 测试结果:
@@ -13,21 +13,21 @@
  *   并发 3个间隔300ms: 0%     ✅ 推荐参数
  */
 
-import https from 'https';
-import http from 'http';
-import { AUTH_TOKEN } from './config.mjs';
+import https from 'node:https';
+import http from 'node:http';
+import { AUTH_TOKEN } from '../src/config.js';
 
 // ===== 配置（临时测试用） =====
-const TEST_PROXIES = null; // 同 v2，测试代理轮换效果
+const TEST_PROXIES: string[] | null = null; // 测试代理轮换效果
 // const TEST_PROXIES = ['http://127.0.0.1:7890'];
 
-const PRODUCTS = {
+const PRODUCTS: Record<'lite' | 'pro' | 'max', { id: string; name: string }> = {
   lite: { id: 'product-02434c', name: 'Lite' },
-  pro:  { id: 'product-1df3e1', name: 'Pro' },
-  max:  { id: 'product-2fc421', name: 'Max' },
+  pro: { id: 'product-1df3e1', name: 'Pro' },
+  max: { id: 'product-2fc421', name: 'Max' },
 };
 
-const USER_AGENTS = [
+const USER_AGENTS: string[] = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/147.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0',
@@ -36,19 +36,33 @@ const USER_AGENTS = [
 ];
 
 let proxyIndex = 0;
-function pickProxy() {
+function pickProxy(): string | null {
   if (!TEST_PROXIES || TEST_PROXIES.length === 0) return null;
   const p = TEST_PROXIES[proxyIndex % TEST_PROXIES.length];
   proxyIndex++;
   return p;
 }
 
-function ts() { return new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }); }
-function log(msg) { console.log(`[${ts()}] ${msg}`); }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function ts(): string {
+  return new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+}
+function log(msg: string): void {
+  console.log(`[${ts()}] ${msg}`);
+}
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 // ===== 单次 batch-preview 请求 =====
-function batchPreview() {
+interface BatchProbeResult {
+  elapsed: number;
+  is555: boolean;
+  code?: number;
+  success?: boolean;
+  error?: boolean;
+}
+
+function batchPreview(): Promise<BatchProbeResult> {
   return new Promise((resolve) => {
     const body = JSON.stringify({
       productId: 'product-02434c',
@@ -58,10 +72,10 @@ function batchPreview() {
       randstr: '',
     });
 
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]!;
     const proxyUrl = pickProxy();
 
-    const headers = {
+    const headers: Record<string, string> = {
       'accept': '*/*',
       'authorization': AUTH_TOKEN,
       'bigmodel-organization': 'org-2D97D0B3D47E441B89c56fE7f138ABBf',
@@ -70,11 +84,11 @@ function batchPreview() {
       'referer': 'https://bigmodel.cn/glm-coding',
       'user-agent': ua,
       'content-type': 'application/json',
-      'content-length': Buffer.byteLength(body),
+      'content-length': Buffer.byteLength(body).toString(),
     };
 
     const t0 = Date.now();
-    let options;
+    let options: http.RequestOptions;
 
     if (proxyUrl) {
       const pu = new URL(proxyUrl);
@@ -99,12 +113,12 @@ function batchPreview() {
     const mod = proxyUrl ? http : https;
     const req = mod.request(options, (res) => {
       let d = '';
-      res.on('data', c => d += c);
+      res.on('data', (c: Buffer) => (d += c.toString()));
       res.on('end', () => {
         try {
-          const j = JSON.parse(d);
+          const j = JSON.parse(d) as { code?: number; msg?: string };
           const elapsed = Date.now() - t0;
-          const is555 = j.code === 555 || (j.msg && j.msg.includes('繁忙'));
+          const is555 = j.code === 555 || !!j.msg?.includes('繁忙');
           resolve({ elapsed, is555, code: j.code, success: j.code === 200 });
         } catch {
           resolve({ elapsed: Date.now() - t0, is555: true, error: true });
@@ -120,10 +134,17 @@ function batchPreview() {
 }
 
 // ===== 测试模式 =====
-const TEST_MODES = [
-  { name: '单发无间隔',                  batchSize: 1, intervalMs: 0, repeats: 15 },
+interface TestMode {
+  name: string;
+  batchSize: number;
+  intervalMs: number;
+  repeats: number;
+}
+
+const TEST_MODES: TestMode[] = [
+  { name: '单发无间隔',                  batchSize: 1, intervalMs: 0,   repeats: 15 },
   { name: '单发间隔300ms',               batchSize: 1, intervalMs: 300, repeats: 15 },
-  { name: '并发3个',                     batchSize: 3, intervalMs: 0, repeats: 5 },
+  { name: '并发3个',                     batchSize: 3, intervalMs: 0,   repeats: 5 },
   { name: '并发2个间隔200ms（推荐方案）', batchSize: 2, intervalMs: 200, repeats: 8 },
   { name: '并发3个间隔200ms',            batchSize: 3, intervalMs: 200, repeats: 6 },
   { name: '并发3个间隔400ms',            batchSize: 3, intervalMs: 400, repeats: 6 },
@@ -132,7 +153,20 @@ const TEST_MODES = [
 ];
 
 // ===== 运行测试 =====
-async function runTest(mode) {
+interface TestResult {
+  name: string;
+  batchSize: number;
+  intervalMs: number;
+  totalOk: number;
+  total555: number;
+  totalErrors: number;
+  rate: number;
+  avgElapsed: number;
+  verdict: string;
+  totalRequests: number;
+}
+
+async function runTest(mode: TestMode): Promise<TestResult> {
   const { name, batchSize, intervalMs, repeats } = mode;
   let total555 = 0;
   let totalOk = 0;
@@ -145,7 +179,7 @@ async function runTest(mode) {
 
   for (let round = 0; round < repeats; round++) {
     // 发一批
-    const batch = [];
+    const batch: Promise<BatchProbeResult>[] = [];
     for (let i = 0; i < batchSize; i++) {
       batch.push(batchPreview());
     }
@@ -161,8 +195,7 @@ async function runTest(mode) {
     }
 
     // 实时打 555 标记
-    const round555 = results.filter(r => r.is555).length;
-    const roundOk = results.filter(r => r.success).length;
+    const round555 = results.filter((r) => r.is555).length;
     const marker = round555 > 0 ? (round555 === batchSize ? '🔴全部555 ' : `⚠️${round555}/${batchSize}个555 `) : '✅';
     if (round < 5 || round555 > 0 || round === repeats - 1) {
       const avgElapsed = results.reduce((s, r) => s + r.elapsed, 0) / results.length;
@@ -176,9 +209,9 @@ async function runTest(mode) {
   }
 
   const avgElapsed = requestCount > 0 ? totalElapsed / requestCount : 0;
-  const rate = requestCount > 0 ? (total555 / requestCount * 100).toFixed(0) : '?';
+  const rate = requestCount > 0 ? parseInt((total555 / requestCount * 100).toFixed(0)) : 0;
 
-  let verdict;
+  let verdict: string;
   if (total555 === 0) verdict = '✅ 安全 → 适合秒杀';
   else if (total555 / requestCount < 0.15) verdict = '⚠️ 轻度限流 → 配合代理可接受';
   else if (total555 / requestCount < 0.3) verdict = '⚠️ 中高度限流 → 建议调小批次或拉大间隔';
@@ -191,7 +224,7 @@ async function runTest(mode) {
     totalOk,
     total555,
     totalErrors,
-    rate: parseInt(rate),
+    rate,
     avgElapsed: Math.round(avgElapsed),
     verdict,
     totalRequests: requestCount,
@@ -199,7 +232,7 @@ async function runTest(mode) {
 }
 
 // ===== 主入口 =====
-async function main() {
+async function main(): Promise<void> {
   console.log('='.repeat(55));
   console.log('🔬 限流压力测试 - 用 batch-preview 探测服务器阈值');
   if (TEST_PROXIES) console.log(`代理: ${TEST_PROXIES.length} 个`);
@@ -219,7 +252,7 @@ async function main() {
   log(`✅ 连通 (${warmup.elapsed}ms)`);
   console.log('');
 
-  const results = [];
+  const results: TestResult[] = [];
 
   for (const mode of TEST_MODES) {
     const r = await runTest(mode);
@@ -252,13 +285,13 @@ async function main() {
   const best = results[0]; // 已按 555 率排序
   console.log(`\n🏆 推荐参数（基于测试结果）:\n`);
 
-  if (best.rate === 0) {
+  if (best && best.rate === 0) {
     console.log(`   batchSize: ${best.batchSize}`);
     console.log(`   batchIntervalMs: ${best.intervalMs}`);
     console.log(`   估计可在 ${best.rate}% 的干净请求下运行`);
   } else {
     // 从结果中找第一个 555 率 < 15% 的
-    const good = results.find(r => r.rate < 15) || results[0];
+    const good = results.find((r) => r.rate < 15) || results[0]!;
     console.log(`   batchSize: ${good.batchSize}`);
     console.log(`   batchIntervalMs: ${good.intervalMs}`);
     console.log(`   预计 555 率: ~${good.rate}%`);
@@ -272,7 +305,7 @@ async function main() {
   log('实际 pay/preview 的 555 率可能略有不同，但趋势一致。');
 }
 
-main().catch(e => {
+main().catch((e: Error) => {
   log(`致命错误: ${e.message}`);
   process.exit(1);
 });
