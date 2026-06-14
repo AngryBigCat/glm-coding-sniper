@@ -12,11 +12,11 @@
     }
     .card {
       background: white; border-radius: 12px;
-      padding: 40px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       width: 560px; text-align: center;
     }
     h1 { font-size: 20px; margin-bottom: 8px; }
-    .desc { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .desc { color: #666; font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
     .btn {
       background: #1677ff; color: white; border: none;
       padding: 14px 32px; border-radius: 8px;
@@ -24,277 +24,282 @@
     }
     .btn:hover { background: #4096ff; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn.success { background: #52c41a; }
+    .btn.danger { background: #ff4d4f; }
     .btn-sm {
       background: #f5f5f5; border: 1px solid #d9d9d9;
-      padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+      padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px;
     }
     .btn-sm:hover { background: #e8e8e8; }
     .btn-sm.primary { background: #1677ff; color: white; border-color: #1677ff; }
-    .btn-sm.primary:hover { background: #4096ff; }
-    .current { margin-top: 20px; text-align: left; display: none; }
-    .current label { font-size: 12px; color: #888; display: block; margin-top: 8px; }
-    .current input { width: 100%; margin-top: 4px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; background: #fafafa; }
-    .current input.code { font-family: monospace; }
-    .current .slot-header { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; margin-bottom: 4px; }
-    .current .slot-header span { font-size: 13px; font-weight: 600; }
-    .current .slot-header .status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
-    .current .slot-header .status.pending { background: #fffbe6; color: #ad8b00; }
-    .current .slot-header .status.done { background: #f6ffed; color: #389e0d; }
-    .current .slot-header .status.skipped { background: #fff2f0; color: #cf1322; }
-    .current .slot-header .status.loading { background: #e6f4ff; color: #1677ff; }
-    .slot-block { border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; margin-top: 8px; }
-    .queue-wrap { margin-top: 16px; text-align: left; display: none; }
-    .queue-wrap .title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
-    .queue-wrap .count { font-size: 12px; color: #888; }
-    .queue-wrap textarea {
-      width: 100%; height: 120px; padding: 8px; border: 1px solid #d9d9d9;
-      border-radius: 6px; font-size: 12px; font-family: monospace;
-      background: #fafafa; resize: none;
+    .status-panel {
+      margin-top: 20px; padding: 16px; background: #fafafa;
+      border: 1px solid #f0f0f0; border-radius: 8px; text-align: left;
     }
-    .actions { margin-top: 10px; display: flex; gap: 8px; justify-content: center; }
-    .note { margin-top: 16px; font-size: 12px; color: #999; }
-    .error-badge { margin-top: 12px; padding: 8px; background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; font-size: 13px; color: #cf1322; display: none; }
-    .success-badge { margin-top: 8px; padding: 6px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; font-size: 12px; color: #389e0d; display: none; text-align: center; }
-    .sep { margin: 16px 0; border: 0; border-top: 1px solid #f0f0f0; }
-    .batch-bar { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-    .batch-bar .btn-sm { padding: 8px 20px; font-size: 14px; }
-    .batch-bar .btn-sm.batch { background: #531dab; color: white; border-color: #531dab; }
-    .batch-bar .btn-sm.batch:hover { background: #722ed1; }
-    .batch-bar .btn-sm.batch:disabled { background: #d9d9d9; color: #999; border-color: #d9d9d9; cursor: not-allowed; }
+    .status-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .status-row .label { color: #888; }
+    .status-row .value { font-weight: 600; font-family: monospace; }
+    .phase-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+    }
+    .phase-idle { background: #f0f0f0; color: #666; }
+    .phase-collecting { background: #fff7e6; color: #d46b08; }
+    .phase-sniping { background: #fff1f0; color: #cf1322; }
+    .phase-done { background: #f6ffed; color: #389e0d; }
+    .phase-failed { background: #fff2f0; color: #cf1322; }
+    .progress-bar {
+      margin-top: 12px; height: 8px; background: #f0f0f0;
+      border-radius: 4px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #1677ff, #52c41a);
+      transition: width 0.3s;
+    }
+    .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 13px; display: none; }
+    .msg.ok { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; display: block; }
+    .msg.err { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; display: block; }
+    .msg.info { background: #e6f4ff; border: 1px solid #91caff; color: #0958d9; display: block; }
+    .sep { margin: 18px 0; border: 0; border-top: 1px solid #f0f0f0; }
+    .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .note { margin-top: 14px; font-size: 12px; color: #999; line-height: 1.6; }
+    .server-status { margin-top: 8px; font-size: 12px; }
+    .server-ok { color: #52c41a; }
+    .server-err { color: #cf1322; }
   </style>
 </head>
 <body>
 <div class="card">
   <h1>🔐 GLM Coding Plan 验证码生成器</h1>
-  <p class="desc">点「批量出码」一次性弹出 3 个滑块，全部拖完后一键复制</p>
+  <p class="desc">
+    拖完滑块会自动推送到抢购脚本。脚本启动后选「自动循环」模式，
+    你只需拖滑块，其余全自动。
+  </p>
 
-  <div id="errorBadge" class="error-badge"></div>
+  <div id="serverStatus" class="server-status"></div>
 
-  <!-- 批量操作栏 -->
-  <div class="batch-bar">
-    <button class="btn-sm batch" id="batchBtn" onclick="batchGenerate()" disabled>⏳ 加载中...</button>
-    <button class="btn-sm primary" onclick="copyQueue()">📋 一键复制全部</button>
-    <button class="btn-sm" onclick="clearQueue()">🗑️ 清空队列</button>
+  <!-- 主操作按钮 -->
+  <div style="margin-top: 16px;">
+    <button class="btn" id="autoBtn" onclick="toggleAuto()">⚡ 自动循环出码</button>
   </div>
 
-  <!-- 3 个批量槽位 -->
-  <div class="current" id="batchPanel">
-    <div id="slot0" class="slot-block">
-      <div class="slot-header"><span>🔑 凭证 #1</span><span class="status pending" id="s0status">等待中</span></div>
-      <label>ticket</label><input class="code" id="s0ticket" readonly><label>randstr</label><input class="code" id="s0randstr" readonly>
-    </div>
-    <div id="slot1" class="slot-block">
-      <div class="slot-header"><span>🔑 凭证 #2</span><span class="status pending" id="s1status">等待中</span></div>
-      <label>ticket</label><input class="code" id="s1ticket" readonly><label>randstr</label><input class="code" id="s1randstr" readonly>
-    </div>
-    <div id="slot2" class="slot-block">
-      <div class="slot-header"><span>🔑 凭证 #3</span><span class="status pending" id="s2status">等待中</span></div>
-      <label>ticket</label><input class="code" id="s2ticket" readonly><label>randstr</label><input class="code" id="s2randstr" readonly>
-    </div>
+  <div class="actions">
+    <button class="btn-sm" onclick="manualOne()">手动出一个</button>
+    <button class="btn-sm" onclick="stopAuto()">⏹ 停止</button>
+  </div>
 
-    <div id="batchDoneMsg" class="success-badge" style="margin-top:12px;"></div>
-    <div class="actions">
-      <button class="btn-sm primary" onclick="addAllToQueue()">➕ 全部添加到队列</button>
-      <button class="btn-sm" onclick="resetBatch()">🔄 重置</button>
+  <!-- 抢购状态面板 -->
+  <div class="status-panel" id="statusPanel">
+    <div class="status-row">
+      <span class="label">抢购阶段</span>
+      <span><span class="phase-badge phase-idle" id="phaseBadge">等待启动</span></span>
     </div>
+    <div class="status-row">
+      <span class="label">池中 ticket</span>
+      <span class="value" id="poolSize">0</span>
+    </div>
+    <div class="status-row">
+      <span class="label">已生产 / 已消费</span>
+      <span class="value"><span id="totalProduced">0</span> / <span id="totalConsumed">0</span></span>
+    </div>
+    <div class="status-row">
+      <span class="label">本页本次出码</span>
+      <span class="value" id="localProduced">0</span>
+    </div>
+    <div class="msg info" id="msgBox">连接抢购脚本中...</div>
   </div>
 
   <hr class="sep">
 
-  <!-- 队列 -->
-  <div class="queue-wrap" id="queuePanel">
-    <div class="title">📋 凭证队列 <span class="count" id="queueCount">(0 个)</span></div>
-    <textarea id="queueOutput" readonly placeholder="生成的凭证会显示在这里&#10;全部完成后点「一键复制全部」"></textarea>
-    <div class="actions">
-      <button class="btn-sm primary" onclick="copyQueue()">📋 复制并自动添加到剪贴板</button>
-      <button class="btn-sm" onclick="clearQueue()">🗑️ 清空队列</button>
+  <!-- 最近出码记录（调试用） -->
+  <div style="text-align:left;">
+    <div style="font-size:13px; font-weight:600; color:#333; margin-bottom:6px;">最近 5 个 ticket</div>
+    <div id="recentList" style="font-size:11px; color:#888; font-family:monospace; max-height:100px; overflow:auto;">
+      （尚无）
     </div>
   </div>
 
   <p class="note">
-    每个 ticket 有效期约 3-5 分钟，<strong>9:55 开始连刷</strong>
-  </p>
-  <p class="note" style="color:#cf1322;">
-    终端脚本先启动 → 在提示处粘贴整批凭证 → 脚本自动轮询抢购
+    每个 ticket 有效期约 3-5 分钟。<br>
+    滑块完成会自动 POST 到 <code>http://localhost:3737/push</code>。
   </p>
 </div>
 
 <script>
-// ===== 队列 =====
-let queue = [];
-let batchResults = [null, null, null];
+// ===== 配置 =====
+const SERVER = 'http://localhost:3737';
+const CAPTCHA_APP_ID = '196026326';
+const AUTO_INTERVAL_MS = 2000;   // 自动循环：每个滑块完成后等 2 秒再弹下一个
 
-function updateQueueUI() {
-  const text = queue.map(c => `${c.ticket} ${c.randstr}`).join('\n');
-  document.getElementById('queueOutput').value = text;
-  document.getElementById('queueCount').textContent = `(${queue.length} 个)`;
-  document.getElementById('queuePanel').style.display = queue.length > 0 ? 'block' : 'none';
+// ===== 状态 =====
+let autoMode = false;
+let captchaBusy = false;
+let localProduced = 0;
+let recent = [];   // 最近 5 个 ticket 摘要
+let serverReachable = false;
+
+// ===== 工具 =====
+function setMsg(text, type = 'info') {
+  const el = document.getElementById('msgBox');
+  el.textContent = text;
+  el.className = 'msg ' + type;
 }
 
-function addAllToQueue() {
-  let added = 0;
-  for (let i = 0; i < 3; i++) {
-    const t = document.getElementById(`s${i}ticket`).value;
-    const r = document.getElementById(`s${i}randstr`).value;
-    if (t && r && !queue.some(c => c.ticket === t)) {
-      queue.push({ ticket: t, randstr: r });
-      added++;
-    }
-  }
-  if (added === 0) { alert('没有可添加的凭证（已全部在队列中）'); return; }
-  updateQueueUI();
-  const msg = document.getElementById('batchDoneMsg');
-  msg.textContent = `✅ 已添加 ${added} 组到队列！`;
-  msg.style.display = 'block';
+function addRecent(ticket) {
+  recent.unshift(ticket.slice(0, 24) + '...');
+  if (recent.length > 5) recent.pop();
+  document.getElementById('recentList').innerHTML = recent.map(t => `<div>${t}</div>`).join('');
 }
 
-function copyQueue() {
-  if (queue.length === 0) {
-    // 如果队列为空但有批量结果，直接复制批量结果
-    const lines = [];
-    for (let i = 0; i < 3; i++) {
-      const t = document.getElementById(`s${i}ticket`).value;
-      const r = document.getElementById(`s${i}randstr`).value;
-      if (t && r) lines.push(`${t} ${r}`);
-    }
-    if (lines.length === 0) { alert('没有可复制的凭证'); return; }
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      alert(`✅ 已复制 ${lines.length} 组凭证！`);
-    }).catch(() => {
-      prompt('复制失败，请手动复制：', lines.join('\n'));
+// ===== 推送 ticket 到抢购脚本 =====
+async function pushTicket(ticket, randstr) {
+  try {
+    const r = await fetch(`${SERVER}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket, randstr }),
     });
+    const data = await r.json();
+    serverReachable = true;
+    document.getElementById('serverStatus').innerHTML = '<span class="server-ok">✅ 已连接抢购脚本</span>';
+    return data;
+  } catch (e) {
+    serverReachable = false;
+    document.getElementById('serverStatus').innerHTML = `<span class="server-err">❌ 抢购脚本未启动（${SERVER}）</span>`;
+    setMsg(`推送失败：抢购脚本未启动？请先运行 node glm-sniper-remote.mjs`, 'err');
+    return null;
+  }
+}
+
+// ===== 弹一个滑块 =====
+function showOneCaptcha(onDone) {
+  if (captchaBusy) return;
+  captchaBusy = true;
+  new TencentCaptcha(CAPTCHA_APP_ID, function(res) {
+    captchaBusy = false;
+    if (res.ret === 0) {
+      localProduced++;
+      document.getElementById('localProduced').textContent = localProduced;
+      addRecent(res.ticket);
+      // 自动推送到抢购脚本
+      pushTicket(res.ticket, res.randstr).then(() => {
+        if (typeof onDone === 'function') onDone(true);
+      });
+    } else {
+      setMsg(`滑块未完成（ret=${res.ret}）`, 'err');
+      if (typeof onDone === 'function') onDone(false);
+    }
+  }, { mode: 'bind', type: 'popup', enableDarkMode: false, timeout: 60000 }).show();
+}
+
+// ===== 自动循环出码 =====
+function autoLoop() {
+  if (!autoMode) return;
+  // 抢购已完成，停止
+  if (lastPhase === 'done') {
+    setMsg('🎉 抢购成功！已停止出码', 'ok');
+    autoMode = false;
+    updateAutoBtn();
     return;
   }
-  const text = queue.map(c => `${c.ticket} ${c.randstr}`).join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    alert(`✅ 已复制 ${queue.length} 组凭证！请在终端粘贴`);
-  }).catch(() => {
-    prompt('复制失败，请手动复制：', text);
+  if (lastPhase === 'failed') {
+    setMsg('❌ 抢购失败/停止，已停止出码', 'err');
+    autoMode = false;
+    updateAutoBtn();
+    return;
+  }
+  if (captchaBusy) { setTimeout(autoLoop, 500); return; }
+
+  showOneCaptcha(() => {
+    if (autoMode) setTimeout(autoLoop, AUTO_INTERVAL_MS);
   });
 }
 
-function clearQueue() {
-  if (queue.length === 0) return;
-  if (!confirm('确定清空队列？')) return;
-  queue = [];
-  updateQueueUI();
+function toggleAuto() {
+  if (autoMode) { stopAuto(); return; }
+  if (!window.TencentCaptcha) { setMsg('验证码 SDK 还在加载中，稍等...', 'err'); return; }
+  autoMode = true;
+  updateAutoBtn();
+  setMsg('🚀 自动循环出码已启动，请拖滑块', 'info');
+  autoLoop();
 }
 
-function resetBatch() {
-  for (let i = 0; i < 3; i++) {
-    document.getElementById(`s${i}ticket`).value = '';
-    document.getElementById(`s${i}randstr`).value = '';
-    setStatus(i, 'pending', '等待中');
-    batchResults[i] = null;
+function stopAuto() {
+  autoMode = false;
+  updateAutoBtn();
+  setMsg('已停止自动循环', 'info');
+}
+
+function manualOne() {
+  if (!window.TencentCaptcha) { setMsg('验证码 SDK 还在加载中', 'err'); return; }
+  showOneCaptcha();
+}
+
+function updateAutoBtn() {
+  const btn = document.getElementById('autoBtn');
+  if (autoMode) {
+    btn.textContent = '⏸ 自动循环中（点击停止）';
+    btn.className = 'btn danger';
+  } else {
+    btn.textContent = '⚡ 自动循环出码';
+    btn.className = 'btn';
   }
-  document.getElementById('batchDoneMsg').style.display = 'none';
 }
 
-function setStatus(idx, cls, text) {
-  const el = document.getElementById(`s${idx}status`);
-  el.className = `status ${cls}`;
-  el.textContent = text;
+// ===== 轮询抢购状态 =====
+let lastPhase = 'idle';
+async function pollStatus() {
+  try {
+    const r = await fetch(`${SERVER}/status`);
+    const d = await r.json();
+    serverReachable = true;
+    document.getElementById('serverStatus').innerHTML = '<span class="server-ok">✅ 已连接抢购脚本</span>';
+
+    lastPhase = d.phase;
+    document.getElementById('poolSize').textContent = d.poolSize;
+    document.getElementById('totalProduced').textContent = d.totalProduced;
+    document.getElementById('totalConsumed').textContent = d.totalConsumed;
+
+    const badge = document.getElementById('phaseBadge');
+    const phaseText = {
+      idle: '等待启动',
+      collecting: '收集 ticket',
+      sniping: '抢购中',
+      done: '抢购成功 🎉',
+      failed: '抢购失败',
+    }[d.phase] || d.phase;
+    badge.textContent = phaseText + (d.message ? ' · ' + d.message : '');
+    badge.className = 'phase-badge phase-' + d.phase;
+
+    // 自动模式下，若抢购结束则停止出码
+    if (autoMode && (d.phase === 'done' || d.phase === 'failed')) {
+      stopAuto();
+    }
+  } catch (e) {
+    serverReachable = false;
+    document.getElementById('serverStatus').innerHTML = '<span class="server-err">❌ 抢购脚本未启动</span>';
+  }
 }
 
-// ===== 验证码 =====
+// ===== 初始化：加载 SDK =====
 function loadSDK() {
   return new Promise((resolve, reject) => {
     if (window.TencentCaptcha) { resolve(); return; }
     const s = document.createElement('script');
     s.src = 'https://turing.captcha.qcloud.com/TJCaptcha.js';
-    s.onload = () => {
-      document.getElementById('batchBtn').textContent = '⚡ 批量出码（3个）';
-      document.getElementById('batchBtn').disabled = false;
-      resolve();
-    };
-    s.onerror = () => {
-      document.getElementById('errorBadge').style.display = 'block';
-      document.getElementById('errorBadge').textContent = '⚠️ 验证码 SDK 加载失败，请刷新页面重试';
-      document.getElementById('batchBtn').textContent = '❌ 加载失败';
-      reject(new Error('SDK load failed'));
-    };
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('SDK 加载失败'));
     document.head.appendChild(s);
   });
 }
 
-function checkAllDone() {
-  const done = batchResults.filter(r => r !== null).length;
-  if (done === 3) {
-    const msg = document.getElementById('batchDoneMsg');
-    msg.textContent = '🎉 全部 3 组已完成！点击「全部添加到队列」然后一键复制';
-    msg.style.display = 'block';
-    document.getElementById('batchBtn').disabled = false;
-    document.getElementById('batchBtn').textContent = '⚡ 继续批量出码（3个）';
-  } else if (done > 0) {
-    const msg = document.getElementById('batchDoneMsg');
-    msg.textContent = `${done}/3 完成，继续拖滑块...`;
-    msg.style.display = 'block';
-  }
-}
-
-function batchGenerate() {
-  // 显示批量面板
-  document.getElementById('batchPanel').style.display = 'block';
-
-  // 如果全部已完成，重置后重新来一轮
-  if (batchResults.every(r => r !== null)) {
-    resetBatch();
-  }
-
-  // 串行弹出：完成一个再弹下一个，避免弹窗冲突卡死
-  showNextSlot();
-}
-
-function showNextSlot() {
-  for (let i = 0; i < 3; i++) {
-    if (batchResults[i] === null) {
-      setStatus(i, 'loading', '弹出中...');
-      document.getElementById('batchBtn').disabled = true;
-      document.getElementById('batchBtn').textContent = `⏳ 出码中... (${i + 1}/3)`;
-
-      // 延迟 300ms 确保上一个弹窗完全销毁（如果有的话）
-      setTimeout(() => showCaptchaForSlot(i, i + 1 < 3 ? () => showNextSlot() : null), 300);
-      return;
-    }
-  }
-}
-
-function showCaptchaForSlot(slotIdx, onComplete) {
-  new TencentCaptcha('196026326', function(res) {
-    if (res.ret === 0) {
-      document.getElementById(`s${slotIdx}ticket`).value = res.ticket;
-      document.getElementById(`s${slotIdx}randstr`).value = res.randstr;
-      batchResults[slotIdx] = { ticket: res.ticket, randstr: res.randstr };
-      setStatus(slotIdx, 'done', '✅ 完成');
-      // 检查是否全部完成或触发下一个回调
-      if (typeof onComplete === 'function') {
-        setTimeout(onComplete, 200);
-      } else {
-        checkAllDone();
-      }
-    } else if (res.ret === 2) {
-      setStatus(slotIdx, 'skipped', '跳过');
-      // 跳过也继续下一个
-      if (typeof onComplete === 'function') {
-        setTimeout(onComplete, 200);
-      } else {
-        checkAllDone();
-      }
-    } else {
-      setStatus(slotIdx, 'skipped', `异常(ret=${res.ret})`);
-      if (typeof onComplete === 'function') {
-        setTimeout(onComplete, 200);
-      } else {
-        checkAllDone();
-      }
-    }
-  }, { mode: 'bind', type: 'popup', enableDarkMode: false, timeout: 60000 }).show();
-}
-
-// 初始化
-document.getElementById('batchBtn').disabled = true;
-document.getElementById('batchPanel').style.display = 'block';
-loadSDK().catch(() => {});
+loadSDK()
+  .then(() => {
+    setMsg('✅ 验证码 SDK 已就绪。点「自动循环出码」开始', 'ok');
+    pollStatus();
+    setInterval(pollStatus, 1000);
+  })
+  .catch(() => setMsg('❌ 验证码 SDK 加载失败，请检查网络后刷新', 'err'));
 </script>
 </body>
 </html>

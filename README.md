@@ -6,11 +6,37 @@
 
 1. 复制 `config.example.mjs` 为 `config.mjs`
 2. 填入你的 AUTH_TOKEN 和 CUSTOMER_ID（从浏览器获取）
-3. 运行脚本
+3. 运行脚本（会自动启动 ticket 服务并打开验证码页面）
 
 ```bash
 node glm-sniper-remote.mjs
 ```
+
+脚本启动后：
+- 自动打开浏览器（`captcha-helper.html`）
+- 在浏览器里点「⚡ 自动循环出码」
+- 拖完一个滑块，ticket 自动入池，页面自动弹下一个
+- 抢到后脚本自动通知浏览器停止
+
+## 工作原理
+
+采用**生产者-消费者**架构，把「生成 ticket」和「消费 ticket」解耦：
+
+```
+┌─────────────────────┐       ┌──────────────────────┐
+│  浏览器（生产者）     │       │  Node 主脚本（消费者） │
+│  captcha-helper.html │       │  glm-sniper-remote.mjs│
+│                     │       │                      │
+│  自动循环弹滑块       │──────►│  ticket-server.mjs    │
+│  你拖完 → 自动 POST  │ /push │  维护共享 ticket 池    │
+│  → 自动弹下一个      │       │  轮询库存 → 有货下单   │
+│                     │◄──────│                      │
+│  轮询 /status        │ /status│  抢到 → setPhase(done)│
+│  抢到自动停止出码    │       │                      │
+└─────────────────────┘       └──────────────────────┘
+```
+
+关键点：你只需持续拖滑块，脚本自动接力消费。ticket 池空了脚本会等新 ticket 入池再继续抢，不会因为 ticket 耗尽就退出。
 
 ## 获取 Token
 
@@ -25,19 +51,20 @@ node glm-sniper-remote.mjs
 
 | 文件 | 说明 |
 |------|------|
-| `glm-sniper-remote.mjs` | **主脚本** — 轮询库存，有货立即并发冲票下单 |
-| `captcha-helper.html` | 验证码生成器页面（批量出 3 个滑块验证） |
+| `glm-sniper-remote.mjs` | **主脚本（消费者）** — 启动服务、轮询库存、并发下单 |
+| `ticket-server.mjs` | **桥接服务** — HTTP 接收 ticket、维护共享池、暴露抢购状态 |
+| `captcha-helper.html` | **验证码页面（生产者）** — 自动循环出码、拖完自动推送 |
 | `test_rate_limit.mjs` | 限流压力测试（不消耗 ticket，探测 555 阈值） |
 | `test_connectivity.mjs` | 连通性诊断（验证 token 与网络） |
 | `config.example.mjs` | 配置模板 |
 
 ## 操作步骤
 
-1. **9:55** 启动脚本：`node glm-sniper-remote.mjs`
-2. **9:58** 双击 `captcha-helper.html` → 点「批量出码」→ 拖 3 个滑块 → 一键复制
-3. 在终端粘贴凭证（每行一组 `ticket randstr`），按 `Ctrl+Z` 结束
+1. **9:55** 启动脚本：`node glm-sniper-remote.mjs`（自动弹出浏览器）
+2. **9:56** 在浏览器里点「⚡ 自动循环出码」
+3. **9:56~10:00** 持续拖滑块（每拖完一个自动入池，页面自动弹下一个）
 4. **10:00** 脚本自动秒杀（9 个套餐按优先级抢，哪个有货下哪个）
-5. 出支付链接后扫码付款
+5. 出支付链接后扫码付款，浏览器会自动停止出码
 
 ## 配置说明
 
@@ -76,12 +103,16 @@ const CONFIG = {
 
 脚本启动后的执行流程：
 
-1. **输入凭证** — 粘贴 `captcha-helper.html` 生成的 ticket + randstr（每行一组），存入 ticket 队列
-2. **验证登录** — 调 `isLimitBuy` 接口校验 token
-3. **轮询库存**（每 200ms）— 调 `batch-preview`（不消耗 ticket），一次返回全部 9 个商品状态
-4. **发现可买商品** — 按 priority 排序，选第一个非售罄/非禁购的商品
-5. **并发下单** — 用全部 ticket 同时调 `pay/preview`（每个消耗 1 个 ticket），第一个返回 bizId 的胜出
-6. **生成支付链接** — 调 `create-sign`（不消耗 ticket），输出扫码支付链接
+1. **启动桥接服务** — `ticket-server.mjs` 监听 `http://localhost:3737`，自动打开浏览器
+2. **自动出码** — 你在浏览器点「自动循环出码」，拖滑块，ticket 自动 POST 入共享池
+3. **验证登录** — 调 `isLimitBuy` 接口校验 token
+4. **轮询库存**（每 200ms）— 调 `batch-preview`（不消耗 ticket），一次返回全部 9 个商品状态
+5. **发现可买商品** — 按 priority 排序，选第一个非售罄/非禁购的商品
+6. **并发下单** — 取池子里全部 ticket 并发调 `pay/preview`（每个消耗 1 个 ticket），第一个返回 bizId 的胜出
+7. **生成支付链接** — 调 `create-sign`（不消耗 ticket），输出扫码支付链接
+8. **通知浏览器停止** — `setPhase('done')`，浏览器检测到状态自动停止出码
+
+如果下单失败（555/售罄），脚本不退出，等新 ticket 入池后继续抢。
 
 ## 提示
 
