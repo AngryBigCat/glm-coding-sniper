@@ -1,11 +1,10 @@
 /**
- * 常量与配置 — 纯数据模块，无副作用
+ * 常量与配置 — 纯数据模块，无副作用，不依赖 config
  *
- * 依赖方向：被 http-client / api / sniper 引用
- * 自身依赖：仅 config.js（HEADERS 需要 AUTH_TOKEN）
+ * 依赖方向：被 http-client / api / main 引用
+ * 自身依赖：仅 types.js（类型）
  */
 
-import { AUTH_TOKEN } from '../../config.js';
 import type { BillingCycle, PayType, Product } from './types.js';
 
 // ===== 运行时配置 =====
@@ -42,10 +41,9 @@ export const PRODUCTS: Product[] = [
 export const REFER_1090 =
   '2651886234-6t53exaRAOcv1bxpC3Q1OxE3AC%3DOkx1yTcppTx6kItu7vP6nx08pZfjr5c9P2EhPNOxBBuRxfkcWxOBuKnxxJxoRBlY3xnI86x03xHx936fxa3847xQip9AtP3lNVxisOcCxlnxlx4jGEx4wIx6yxukc_x4gWlTM7O4JyVuB%3DI6ZVxxMRPeMJIncAf8cQ94JDu6pvnx';
 
-// ===== 请求头模板（内嵌 AUTH_TOKEN 和组织/项目 ID）=====
-export const HEADERS: Record<string, string> = {
+// ===== 静态请求头（不含 authorization，token 由 http-client 动态注入）=====
+export const STATIC_HEADERS: Record<string, string> = {
   accept: '*/*',
-  authorization: AUTH_TOKEN,
   'bigmodel-organization': 'org-2D97D0B3D47E441B89c56fE7f138ABBf',
   'bigmodel-project': 'proj_1Cd4b480482F4eEFbe43eB20E2Da5c18',
   origin: 'https://bigmodel.cn',

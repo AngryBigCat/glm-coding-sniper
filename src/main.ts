@@ -16,9 +16,11 @@
  *       常量与横幅在 core/constants.ts，HTTP 服务在 server/ticket-server.ts。
  */
 
+import { AUTH_TOKEN } from '../config.js';
 import { CONFIG, printBanner } from './core/constants.js';
-import { log, setLogSink } from './core/http-client.js';
-import { checkAllStock, placeOrder, verifyAuth, waitForTickets } from './core/api.js';
+import { getCustomerId } from './core/auth.js';
+import { createApiClient, log, setLogSink } from './core/http-client.js';
+import { createApi, waitForTickets } from './core/api.js';
 import {
   startServer, openBrowser, setPhase, shiftTicket, poolSize,
   appendLog, setLastStock, recordOrder, isPaused,
@@ -27,6 +29,11 @@ import {
 // ===== 主流程 =====
 async function main(): Promise<void> {
   printBanner();
+
+  // 组装依赖：config 只在 main 加载，通过工厂注入到业务层
+  const client = createApiClient(AUTH_TOKEN);
+  const customerId = getCustomerId(AUTH_TOKEN);
+  const { verifyAuth, checkAllStock, placeOrder } = createApi(client, customerId);
 
   // 1. 启动 ticket 服务 + 打开浏览器
   startServer();
