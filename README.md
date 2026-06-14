@@ -169,8 +169,8 @@ export const CONFIG: AppConfig = {
 3. **验证登录** — 调 `isLimitBuy` 接口校验 token
 4. **轮询库存**（每 200ms）— 调 `batch-preview`（不消耗 ticket），一次返回全部 9 个商品状态
 5. **发现可买商品** — 按 priority 排序，选第一个非售罄/非禁购的商品
-6. **并发下单** — 取池子里全部 ticket 并发调 `pay/preview`（每个消耗 1 个 ticket），第一个返回 bizId 的胜出
-7. **生成支付链接** — 调 `create-sign`（不消耗 ticket），输出扫码支付链接
+6. **串行下单** — 每次取 1 个 ticket 调 `pay/preview`（消耗 1 个），成功即停；失败（555/限流）换下一个 ticket 继续冲，售罄则停止
+7. **生成支付链接** — 命中 bizId 后调 `create-sign`（不消耗 ticket），输出扫码支付链接
 8. **通知浏览器停止** — `setPhase('done')`，浏览器检测到状态自动停止出码
 
 下单失败（555/售罄）时脚本不退出，等新 ticket 入池后继续抢。可随时点「暂停」按钮暂停抢购循环。

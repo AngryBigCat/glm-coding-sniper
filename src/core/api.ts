@@ -9,7 +9,7 @@
  *       placeOrder 通过 OrderDeps 接收 ticket 池操作，与 server 层解耦。
  */
 
-import { CONFIG, PRODUCTS, REFER_1090 } from './constants.js';
+import { CONFIG, PRODUCTS } from './constants.js';
 import type { ApiClient } from './http-client.js';
 import { log } from './http-client.js';
 import type {
@@ -87,9 +87,9 @@ export function createApi(client: ApiClient, customerId: string): BusinessApi {
     if (deps.poolSize() === 0) return { error: 'ticket 池为空' };
 
     const target = available[0]!;
-    const { id: productId, name, cycle } = target;
+    const { id: productId, name } = target;
     const poolBefore = deps.poolSize();
-    log(`🎯 下单 ${name} (${productId}, cycle=${cycle})，串行冲票（池子 ${poolBefore} 个）...`);
+    log(`🎯 下单 ${name} (${productId})，串行冲票（池子 ${poolBefore} 个）...`);
 
     let attempt = 0;
     let lastError = '未知错误';
@@ -99,7 +99,7 @@ export function createApi(client: ApiClient, customerId: string): BusinessApi {
       const cred = deps.shiftTicket();
       if (!cred) break;
 
-      const result = await trySingleOrder(productId, name, cycle, cred, attempt);
+      const result = await trySingleOrder(productId, name, cred, attempt);
 
       // 成功：立即返回
       if ('success' in result) return result;
@@ -121,16 +121,14 @@ export function createApi(client: ApiClient, customerId: string): BusinessApi {
   async function trySingleOrder(
     productId: string,
     productName: string,
-    billingCycle: BillingCycle,
     cred: TicketCred,
     attempt: number,
   ): Promise<OrderResult> {
     const { ticket, randstr } = cred;
     let res: ApiResponse<PayPreviewData> | ApiParseError;
     try {
-      res = await client<ApiResponse<PayPreviewData>>('POST', `/api/biz/pay/preview?refer__1090=${REFER_1090}`, {
+      res = await client<ApiResponse<PayPreviewData>>('POST', '/api/biz/pay/preview', {
         productId,
-        billingCycle,
         ticket,
         randstr,
       });

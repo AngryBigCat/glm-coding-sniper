@@ -37,19 +37,17 @@ export const PRODUCTS: Product[] = [
   { id: 'product-d46f8b', name: 'Max年付',  cycle: 'annual',  price: '¥4502.4/年',  priority: 9 },
 ];
 
-// ===== 下单接口的 query 参数（加密 referer 串）=====
-export const REFER_1090 =
-  '2651886234-6t53exaRAOcv1bxpC3Q1OxE3AC%3DOkx1yTcppTx6kItu7vP6nx08pZfjr5c9P2EhPNOxBBuRxfkcWxOBuKnxxJxoRBlY3xnI86x03xHx936fxa3847xQip9AtP3lNVxisOcCxlnxlx4jGEx4wIx6yxukc_x4gWlTM7O4JyVuB%3DI6ZVxxMRPeMJIncAf8cQ94JDu6pvnx';
-
 // ===== 静态请求头（不含 authorization，token 由 http-client 动态注入）=====
 export const STATIC_HEADERS: Record<string, string> = {
-  accept: '*/*',
+  accept: 'application/json, text/plain, */*',
+  'accept-language': 'zh',
   'bigmodel-organization': 'org-2D97D0B3D47E441B89c56fE7f138ABBf',
   'bigmodel-project': 'proj_1Cd4b480482F4eEFbe43eB20E2Da5c18',
   origin: 'https://bigmodel.cn',
   referer: 'https://bigmodel.cn/glm-coding',
+  'set-language': 'zh',
   'user-agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
 };
 
 // ===== 启动横幅（读 CONFIG 展示监控信息）=====

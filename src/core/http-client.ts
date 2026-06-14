@@ -59,7 +59,7 @@ export function createApiClient(authToken: string): ApiClient {
       let bs: string | null = null;
       if (body) {
         bs = JSON.stringify(body);
-        h['content-type'] = 'application/json';
+        h['content-type'] = 'application/json;charset=UTF-8';
         h['content-length'] = Buffer.byteLength(bs).toString();
       }
       const req = https.request(
