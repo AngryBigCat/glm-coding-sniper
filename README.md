@@ -11,7 +11,7 @@ npm install
 # 2. 创建配置文件（从模板复制）
 npm run setup
 
-# 3. 编辑 config.ts，填入 AUTH_TOKEN 和 CUSTOMER_ID
+# 3. 编辑 config.ts，填入 AUTH_TOKEN（customerId 会自动从 token 解码）
 
 # 4. 验证连通性（可选）
 npm run test:connect
@@ -91,7 +91,7 @@ npm start
    ```
 3. 复制输出填到 `config.ts`
 
-`CUSTOMER_ID` 获取：登录后访问 https://bigmodel.cn/coding-plan/personal/overview，F12 → Network 刷新页面找请求里的 customerId。
+> 只需配置 `AUTH_TOKEN` 一个值。`customerId` 会自动从 token 的 JWT 解码（见 `src/core/auth.ts`），无需手动获取。
 
 ## 项目结构
 
@@ -104,9 +104,10 @@ npm start
 │   ├── main.ts             主流程编排（入口）
 │   ├── core/               核心业务层
 │   │   ├── types.ts           共享类型定义
-│   │   ├── constants.ts       常量配置 + 横幅
-│   │   ├── http-client.ts     HTTP 客户端 + 日志（log 自动转发到浏览器）
-│   │   └── api.ts             业务逻辑（查库存 / 下单 / 等待 ticket）
+│   │   ├── constants.ts       常量配置 + 横幅（不含 token，纯静态）
+│   │   ├── http-client.ts     HTTP 客户端工厂 + 日志（log 自动转发到浏览器）
+│   │   ├── auth.ts            JWT 解码（customerId 从 token 提取）
+│   │   └── api.ts             业务逻辑工厂（查库存 / 下单 / 等待 ticket）
 │   ├── server/            HTTP 服务层
 │   │   └── ticket-server.ts   ticket 池服务 + 页面路由 + 暂停控制
 │   └── pages/             页面渲染
@@ -119,7 +120,14 @@ npm start
     └── test-rate-limit.ts    限流压力测试
 ```
 
-依赖方向严格单向，无循环：`main → core/api → core/http-client → core/constants → config`
+依赖方向严格单向，无循环。config 只在 `main.ts` 加载，通过工厂函数注入底层：
+```
+main.ts（唯一 import config）
+  ├─ createApiClient(AUTH_TOKEN) → client     注入给 createApi
+  ├─ getCustomerId(AUTH_TOKEN)   → customerId  注入给 createApi
+  └─ createApi(client, customerId) → { verifyAuth, checkAllStock, placeOrder }
+```
+core/server 层不 import config，全部通过参数接收依赖。
 
 ## 套餐
 
