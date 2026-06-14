@@ -17,17 +17,25 @@ import { AUTH_TOKEN, CUSTOMER_ID } from './config.mjs';
 
 // ===== 配置 =====
 const CONFIG = {
-  billingCycle: 'month',
+  billingCycle: 'month',  // batch-preview 查询用（服务器会返回全部商品，含季付/年付）
   autoRenew: true,
   checkInterval: 0.2,     // 轮询间隔(秒)
   payType: 'WE_CHAT',     // WE_CHAT | ALI
 };
 
-
+// 监控的商品（月付 + 季付 + 年付）
+// cycle 是下单 pay/preview 需要的 billingCycle 值（月付=month, 季付=quarter, 年付=annual）
+// priority 抢购优先级：Lite月 > Lite季 > Pro月 > Pro季 > Max月 > Max季 > Lite年 > Pro年 > Max年
 const PRODUCTS = [
-  { id: 'product-02434c', name: 'Lite', price: '¥49/月', priority: 1 },
-  { id: 'product-1df3e1', name: 'Pro',  price: '¥149/月', priority: 2 },
-  { id: 'product-2fc421', name: 'Max',  price: '¥469/月', priority: 3 },
+  { id: 'product-02434c', name: 'Lite月付', cycle: 'month',   price: '¥49/月',      priority: 1 },
+  { id: 'product-b8ea38', name: 'Lite季付', cycle: 'quarter', price: '¥132.3/季',   priority: 2 },
+  { id: 'product-1df3e1', name: 'Pro月付',  cycle: 'month',   price: '¥149/月',     priority: 3 },
+  { id: 'product-fef82f', name: 'Pro季付',  cycle: 'quarter', price: '¥402.3/季',   priority: 4 },
+  { id: 'product-2fc421', name: 'Max月付',  cycle: 'month',   price: '¥469/月',     priority: 5 },
+  { id: 'product-5d3a03', name: 'Max季付',  cycle: 'quarter', price: '¥1266.3/季',  priority: 6 },
+  { id: 'product-70a804', name: 'Lite年付', cycle: 'annual',  price: '¥470.4/年',   priority: 7 },
+  { id: 'product-5643e6', name: 'Pro年付',  cycle: 'annual',  price: '¥1430.4/年',  priority: 8 },
+  { id: 'product-d46f8b', name: 'Max年付',  cycle: 'annual',  price: '¥4502.4/年',  priority: 9 },
 ];
 
 const REFER_1090 = '2651886234-6t53exaRAOcv1bxpC3Q1OxE3AC%3DOkx1yTcppTx6kItu7vP6nx08pZfjr5c9P2EhPNOxBBuRxfkcWxOBuKnxxJxoRBlY3xnI86x03xHx936fxa3847xQip9AtP3lNVxisOcCxlnxlx4jGEx4wIx6yxukc_x4gWlTM7O4JyVuB%3DI6ZVxxMRPeMJIncAf8cQ94JDu6pvnx';
@@ -84,8 +92,8 @@ function getNextTicket() {
 async function inputCredentials() {
   console.log('='.repeat(50));
   console.log('GLM Coding Plan 抢购脚本 v5 - 多凭证版');
-  console.log('监控: Lite ¥49 | Pro ¥149 | Max ¥469');
-  console.log('策略: 哪个有货下哪个，优先级 Lite > Pro > Max');
+  console.log('监控: Lite月¥49 | Lite季¥132.3 | Pro月¥149 | Pro季¥402.3 | Max月¥469 | Max季¥1266.3 | Lite年¥470.4 | Pro年¥1430.4 | Max年¥4502.4');
+  console.log('策略: 哪个有货下哪个，优先级 Lite月 > Lite季 > Pro月 > Pro季 > Max月 > Max季 > Lite年 > Pro年 > Max年');
   console.log(`支付: ${CONFIG.payType === 'WE_CHAT' ? '微信' : '支付宝'}`);
   console.log('');
   console.log('⚠️ pay/preview 每次调用消耗 1 个 ticket，建议准备 3-5 个');
@@ -161,17 +169,17 @@ async function placeOrder(productInfo) {
   if (ticketQueue.length === 0) return { error: 'ticket 已用完，请重新准备' };
 
   const target = available[0];
-  const { id: productId, name } = target;
-  log(`🎯 下单 ${name} (${productId})，并发发起 ${ticketQueue.length} 个 ticket 请求...`);
-  return await concurrentPlaceOrder(productId, name, ticketQueue);
+  const { id: productId, name, cycle } = target;
+  log(`🎯 下单 ${name} (${productId}, cycle=${cycle})，并发发起 ${ticketQueue.length} 个 ticket 请求...`);
+  return await concurrentPlaceOrder(productId, name, cycle, ticketQueue);
 }
 
 // ===== 步骤 4b: 并发下单（多 ticket 同时冲） =====
-async function concurrentPlaceOrder(productId, productName, tickets) {
+async function concurrentPlaceOrder(productId, productName, billingCycle, tickets) {
   // 同时发所有 ticket 的 pay/preview 请求
   const promises = tickets.map((cred, i) => {
     const { ticket, randstr } = cred;
-    return api('POST', `/api/biz/pay/preview?refer__1090=${REFER_1090}`, { productId, ticket, randstr })
+    return api('POST', `/api/biz/pay/preview?refer__1090=${REFER_1090}`, { productId, billingCycle, ticket, randstr })
       .then(res => ({ ticketIdx: i, success: true, result: res }))
       .catch(err => ({ ticketIdx: i, success: false, error: err.message }));
   });
